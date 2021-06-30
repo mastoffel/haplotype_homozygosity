@@ -1,6 +1,7 @@
 # make one genotype txt file per chr for alphapeel
-library(tidyverse)
+#library(tidyverse)
 library(glue)
+library(data.table)
 
 # plink files here
 data_path <- "data"

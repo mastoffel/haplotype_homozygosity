@@ -1,5 +1,4 @@
 # phase haploptypes
-library(tidyverse)
 #library(data.table)
 library(glue)
 library(furrr)

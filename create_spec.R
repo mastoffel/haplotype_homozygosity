@@ -14,5 +14,5 @@ create_spec <- function(spec, nsnps, genos, ped, out) {
          endsnp         , 520
              ")
         
-        write_lines(out, file = spec)
+        write.lines(out, spec)
 }
