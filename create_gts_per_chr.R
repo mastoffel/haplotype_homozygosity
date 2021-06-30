@@ -2,12 +2,22 @@
 #library(tidyverse)
 library(glue)
 library(data.table)
-
+library(purrr)
+# command line arguments
+args_in <- commandArgs(trailingOnly=TRUE)
 # plink files here
 data_path <- "data"
 
+if (length(args_in)==1) {
+	out_path <- args_in[1]
+} else if (length(args_in) == 0){
+	out_path <- data_path
+} else {
+	stop("only one argument allowed (path to output")
+}
+	
 # subfolder genos for single chromosome data
-dir.create(file.path(data_path, "genos"))
+dir.create(file.path(out_path, "genos"))
 
 # make alphapeel-ready txt files for genotypes per chromosome
 create_gts_per_chr <- function(chr_num) {
@@ -24,7 +34,7 @@ create_gts_per_chr <- function(chr_num) {
                 set(genos,which(is.na(genos[[j]])),j,9)
         }
         # save as txt
-        fwrite(genos, file = glue("{data_path}/genos/chr{chr_num}.txt"), 
+        fwrite(genos, file = glue("{out_path}/genos/chr{chr_num}.txt"), 
                col.names = FALSE, sep = " ")  
         
 }

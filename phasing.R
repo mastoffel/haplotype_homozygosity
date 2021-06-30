@@ -1,5 +1,6 @@
 # phase haploptypes
-#library(data.table)
+#library(tidyverse)
+library(data.table)
 library(glue)
 library(furrr)
 source("create_spec.R")
@@ -7,6 +8,9 @@ source("create_spec.R")
 data_path <- "data"
 out_path <- "output"
 ped <- glue("{data_path}/ped.txt")
+
+args_in <- commandArgs(trailingOnly=TRUE)
+if (length(args_in) == 1) out_path <- args_in[1]
 
 # peeling per chromosome
 run_alpha_peel <- function(chr_num, data_path, out_path, ped) {
@@ -26,9 +30,9 @@ run_alpha_peel <- function(chr_num, data_path, out_path, ped) {
                     out = out_file)
         
         # run alpha peel
-        sys_command <- glue("./AlphaPeel_osx {spec_file}")
+        sys_command <- glue("./AlphaPeel_linux {spec_file}")
         system(sys_command)
 }
 
-plan(multisession, workers = 2)
+plan(multiprocess, workers = 16)
 future_walk(1:26, run_alpha_peel, data_path, out_path, ped)

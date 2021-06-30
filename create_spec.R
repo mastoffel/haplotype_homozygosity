@@ -10,9 +10,7 @@ create_spec <- function(spec, nsnps, genos, ped, out) {
          OutputFilePath , {out}
          nCycles        , 20
          runType        , multi
-         startsnp       , 500
-         endsnp         , 520
              ")
         
-        write.lines(out, spec)
+        writeLines(out, spec)
 }
