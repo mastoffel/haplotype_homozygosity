@@ -8,7 +8,7 @@ create_spec <- function(spec, nsnps, genos, ped, out) {
          InputFilePath  , {genos}
          pedigree       , {ped}
          OutputFilePath , {out}
-         nCycles        , 20
+         nCycles        , 10
          runType        , multi
              ")
         

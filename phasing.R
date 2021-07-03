@@ -34,5 +34,5 @@ run_alpha_peel <- function(chr_num, data_path, out_path, ped) {
         system(sys_command)
 }
 
-plan(multiprocess, workers = 16)
+plan(multiprocess, workers = 26)
 future_walk(1:26, run_alpha_peel, data_path, out_path, ped)
