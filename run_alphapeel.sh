@@ -2,7 +2,7 @@
 
 #$ -V
 #$ -cwd
-#$ -N alphapeel
+#$ -N alphapeel_wi_chr
 #$ -o o_files/
 #$ -e e_files/
 
