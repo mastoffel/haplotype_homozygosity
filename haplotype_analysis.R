@@ -1,0 +1,100 @@
+library(data.table)
+library(tidyverse)
+library(collapse)
+library(glue)
+library(here)
+
+# carrier mating tests
+load(here("data", "sheep_ped.RData"))
+ped <- as_tibble(sheep_ped) %>% 
+        setNames(c("id", "mum", "dad"))
+
+# get individuals with genotypes
+inds <- fread(here("data", "plink", "sheep.fam")) %>% 
+                select(V2) %>% 
+                rename(id = V2) %>% 
+                .$id
+
+# filter ped for individuals with genotypes (id, mum and dad must have genotypes)
+ped <- ped %>% 
+        filter(id %in% inds) %>% 
+        drop_na() %>% 
+        filter(mum %in% inds,
+               dad %in% inds) %>% 
+        mutate_if(is.character, as.numeric) %>% 
+        as.data.table()
+
+# chromosome
+chr <- 26
+
+# get haplotypes, remove everything but genotypes to make it a matrix
+dat <- fread(here("output", "phased_matrix", glue("sheep_phased_chr_{chr}.hap.gz"))) %>% 
+        select(-V1, -V2, -V3, -V4, -V5) %>% 
+        as.matrix()
+
+# get individual names, should be 5952
+# here is a bit clunky here so stay with fixed path
+ind_names <- system(glue("zgrep '^#CHROM*' output/phased/sheep_phased_chr_{chr}.vcf.gz"),
+                    intern = TRUE) %>% 
+                str_split("\t") %>%
+                unlist() %>% 
+                .[-(1:9)] %>% 
+                str_split("_") %>% 
+                map_chr(2)
+
+# double each name and add _a _b for haplotype 1 / haplotype 2
+ind_names_hap <- rep(ind_names, each = 2) %>% 
+                        paste0(., c("_a", "_b"))
+# add to matrix
+colnames(dat) <- ind_names_hap
+
+
+# test haplotype
+new_dat <- dapply(dat[2000:2005, ], paste, collapse = "", MARGIN = 2) %>% 
+                enframe(name = "id_hap", value = "hap") %>% 
+                mutate(id = str_remove(id_hap, "_[a-z]")) %>%
+                select(-id_hap) %>% 
+                mutate(hap_pos = rep(c("hap_a", "hap_b"), nrow(.)/2), .before = 1) %>% 
+                mutate(id = as.numeric(id)) %>% 
+                pivot_wider(names_from = hap_pos, values_from = hap)
+
+
+# list haplotypes
+haps_tab <- table(as.matrix(new_dat[, c("hap_a", "hap_b")]))
+# haplotypes with high frequencies hf > 1%
+haps_hf <- haps_tab[haps_tab/sum(haps_tab) > 0.01]
+names(haps_hf)
+
+# get haplotypes matched for parents and offspring
+haps_all <- ped %>% 
+        merge(new_dat, by = "id") %>% 
+        setnames(old = c("hap_a", "hap_b"), new = paste0("id_", c("hap_a", "hap_b"))) |>
+        merge(new_dat, by.x = "mum", by.y = "id") |>
+        setnames(old = c("hap_a", "hap_b"), new = paste0("mum_", c("hap_a", "hap_b"))) |>
+        merge(new_dat, by.x = "dad", by.y = "id") |>
+        setnames(old = c("hap_a", "hap_b"), new = paste0("dad_", c("hap_a", "hap_b"))) 
+
+# make a matrix 
+hap_mat <- as.matrix(haps_all[, 4:9])
+
+# get transmission probabilities 
+hap_one <- names(haps_hf)[1]
+
+# calculate homozygote deficiency
+hom_def <- function(hap) {
+        
+        hap_num <- (hap_mat == hap) * 1
+        hap_prob <- (hap_num[, c(1, 3, 5)] + hap_num[, c(2, 4, 6)])/2
+        # Fritz et al. expected offspring carrying homozygous haplotype
+        E_k <- sum(hap_prob[, "mum_hap_a"] * hap_prob[, "dad_hap_a"])
+        # actual offspring carrying homozygous haplotype
+        O_k <- sum(hap_prob[, "id_hap_a"] == 1)
+        
+        cst_p <- tibble(hap = hap, p_val = chisq.test(c(O_k, E_k))$p.value)
+      
+}
+
+map_dfr(names(haps_hf), hom_def) %>% 
+        mutate(chr = chr,
+               snp_start = snp_start)
+
