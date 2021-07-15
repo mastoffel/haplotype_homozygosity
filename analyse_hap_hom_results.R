@@ -1,0 +1,28 @@
+library(tidyverse)
+library(here)
+
+# read results from haplotype homozygosity scan
+all_files <- list.files(here("output", "hap_hom_results"), full.names = TRUE)
+results <- map(all_files, read_delim, delim = "\t") %>% 
+                bind_rows()
+
+res2 <- results %>% 
+        filter(p_val < 0.1)
+
+ggplot(res2, aes(snp_start, -log10(p_val))) + 
+        geom_point(size = 0.4, alpha = 0.2) +
+        facet_wrap(~chr, scales = "free_x") +
+        geom_hline(yintercept = -log10(0.05/38000))
+
+-log10(0.05/38000)
+
+results %>% 
+        filter(p_val < (0.05/10000))
+
+snp_map <- read_delim(here("data", "plink", "sheep.bim"), delim = "\t",
+                      col_names = FALSE) %>% 
+                        setNames(c("chr", "snp", "cM", "bp", "a1", "a2")) %>% 
+                        filter(chr == 6)
+
+snp_map[1558, ]
+

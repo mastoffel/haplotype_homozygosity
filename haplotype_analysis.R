@@ -1,9 +1,10 @@
 library(data.table)
 library(tidyverse)
-library(collapse)
+#library(collapse)
 library(glue)
 library(here)
 library(furrr)
+
 
 # carrier mating tests
 load(here("data", "sheep_ped.RData"))
@@ -61,21 +62,31 @@ run_hap_hom_by_chr <- function(chr) {
                 hap_prob <- (hap_num[, c(1, 3, 5)] + hap_num[, c(2, 4, 6)])/2
                 
                 # number parents where mum and dad have are carriers
-                num_carrier_matings <- sum(hap_prob[, "mum_hap_a"] > 0 & hap_prob[, "dad_hap_a"])
+                num_carrier_matings <- sum((hap_prob[, "mum_hap_a"] > 0) & (hap_prob[, "dad_hap_a"] > 0))
+                # when these are 0, return NA
+                if (num_carrier_matings == 0) return(tibble(hap = hap, p_val = NA_real_))
                 
                 # number offspring w homozygous haplotype 
                 O_k_hom <- sum(hap_prob[, "id_hap_a"] == 1)
+                E_k_hom <- sum(hap_prob[, "mum_hap_a"] * hap_prob[, "dad_hap_a"])
+                
+                # number of offspring wo homozygous focal haplotype (i.e. het or hom for alternative haplotype)
+                O_k_nonhom <- num_carrier_matings - O_k_hom
+                E_k_nonhom <- num_carrier_matings - E_k_hom
+                
+                # calculate chisq statistic and p-value
+                chisq <- ((O_k_hom - E_k_hom)^2)/E_k_hom + ((O_k_nonhom - E_k_nonhom)^2)/E_k_nonhom
+                chi_p <- pchisq(chisq, df = 1, lower.tail = FALSE)
+                
                 # 
-                O_k_nonhom <-  num_carrier_matings - O_k_hom
+                #O_k_nonhom <-  num_carrier_matings - O_k_hom
                 
                 # Fritz et al. expected offspring carrying homozygous haplotype / proportion for chi squ
-                E_k_hom <- sum(hap_prob[, "mum_hap_a"] * hap_prob[, "dad_hap_a"])/num_carrier_matings
-                E_k_nonhom <- 1 - E_k_hom 
+                #E_k_hom <- sum(hap_prob[, "mum_hap_a"] * hap_prob[, "dad_hap_a"])/num_carrier_matings
+                #E_k_nonhom <- 1 - E_k_hom 
+                #chi <- chisq.test(x = c(O_k_hom, O_k_nonhom), p = c(E_k_hom, E_k_nonhom))
                 
-                if (num_carrier_matings < 20) return(tibble(hap = hap, p_val = NA_real_))
-                
-                chi <- chisq.test(x = c(O_k_hom, O_k_nonhom), p = c(E_k_hom, E_k_nonhom))
-                cst_p <- tibble(hap = hap, p_val = chi$p.value)
+                cst_p <- tibble(hap = hap, p_val = chi_p)
                 cst_p
         }
         
@@ -83,7 +94,7 @@ run_hap_hom_by_chr <- function(chr) {
         test_hap_hom <- function(start_snp, haps_raw, hap_length, calc_hom_def) {
                 
                 # reshape 
-                haps <- dapply(haps_raw[start_snp:(start_snp+hap_length), ], 
+                haps <- apply(haps_raw[start_snp:(start_snp+hap_length), ], 
                                paste, collapse = "", MARGIN = 2) %>% 
                         enframe(name = "id_hap", value = "hap") %>% 
                         mutate(id = str_remove(id_hap, "_[a-z]")) %>%
@@ -125,7 +136,7 @@ run_hap_hom_by_chr <- function(chr) {
         # loop safely
         test_hap_hom_safe <- safely(test_hap_hom)
         # run in parallel
-        plan(multiprocess, workers = 16)
+        plan(multiprocess, workers = 4)
         
         out <- future_map(1:num_snps, test_hap_hom_safe, # num_snps
                           haps_raw = haps_raw, hap_length = 20,
@@ -144,4 +155,4 @@ run_hap_hom_by_chr <- function(chr) {
         
 }
 
-walk(1:26, run_hap_hom_by_chr)
+walk(26:1, run_hap_hom_by_chr)
