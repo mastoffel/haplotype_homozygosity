@@ -5,6 +5,8 @@ library(glue)
 library(here)
 library(furrr)
 
+args_in <- commandArgs(trailingOnly=TRUE)
+hap_length <- as.numeric(args_in[1])
 
 # carrier mating tests
 load(here("data", "sheep_ped.RData"))
@@ -61,14 +63,19 @@ run_hap_hom_by_chr <- function(chr) {
                 # calculate probability of transmitting haplotype for id, mum, dad
                 hap_prob <- (hap_num[, c(1, 3, 5)] + hap_num[, c(2, 4, 6)])/2
                 
-                # number parents where mum and dad have are carriers
+                # filter parents where both mum and dad are carriers
+                hap_prob_carriers <- hap_prob[(hap_prob[, "mum_hap_a"] > 0) & (hap_prob[, "dad_hap_a"] > 0),,drop=FALSE]
                 num_carrier_matings <- sum((hap_prob[, "mum_hap_a"] > 0) & (hap_prob[, "dad_hap_a"] > 0))
+                
                 # when these are 0, return NA
-                if (num_carrier_matings == 0) return(tibble(hap = hap, p_val = NA_real_))
+                if (num_carrier_matings <= 1) return(tibble(hap = hap, p_val = NA_real_,
+                                                            obs = NA_real_, exp = NA_real_,
+                                                            num_carriers = 0))
                 
                 # number offspring w homozygous haplotype 
-                O_k_hom <- sum(hap_prob[, "id_hap_a"] == 1)
-                E_k_hom <- sum(hap_prob[, "mum_hap_a"] * hap_prob[, "dad_hap_a"])
+                O_k_hom <- sum(hap_prob_carriers[, "id_hap_a"] == 1)
+                # expected offspring w homozygous haplotype
+                E_k_hom <- sum(hap_prob_carriers[, "mum_hap_a"] * hap_prob_carriers[, "dad_hap_a"])
                 
                 # number of offspring wo homozygous focal haplotype (i.e. het or hom for alternative haplotype)
                 O_k_nonhom <- num_carrier_matings - O_k_hom
@@ -78,15 +85,8 @@ run_hap_hom_by_chr <- function(chr) {
                 chisq <- ((O_k_hom - E_k_hom)^2)/E_k_hom + ((O_k_nonhom - E_k_nonhom)^2)/E_k_nonhom
                 chi_p <- pchisq(chisq, df = 1, lower.tail = FALSE)
                 
-                # 
-                #O_k_nonhom <-  num_carrier_matings - O_k_hom
-                
-                # Fritz et al. expected offspring carrying homozygous haplotype / proportion for chi squ
-                #E_k_hom <- sum(hap_prob[, "mum_hap_a"] * hap_prob[, "dad_hap_a"])/num_carrier_matings
-                #E_k_nonhom <- 1 - E_k_hom 
-                #chi <- chisq.test(x = c(O_k_hom, O_k_nonhom), p = c(E_k_hom, E_k_nonhom))
-                
-                cst_p <- tibble(hap = hap, p_val = chi_p)
+                cst_p <- tibble(hap = hap, p_val = chi_p, obs = O_k_hom, 
+                                exp = E_k_hom, num_carriers = num_carrier_matings)
                 cst_p
         }
         
@@ -123,7 +123,7 @@ run_hap_hom_by_chr <- function(chr) {
                 hap_mat <- as.matrix(haps_all[, 4:9])
                 
                 # get transmission probabilities 
-                hap_one <- names(haps_hf)[1]
+               # hap_one <- names(haps_hf)[1]
                 
                 out <- map_dfr(names(haps_hf), calc_hom_def, hap_mat) %>% 
                         mutate(chr = chr, snp_start = start_snp) 
@@ -139,7 +139,7 @@ run_hap_hom_by_chr <- function(chr) {
         plan(multiprocess, workers = 4)
         
         out <- future_map(1:num_snps, test_hap_hom_safe, # num_snps
-                          haps_raw = haps_raw, hap_length = 20,
+                          haps_raw = haps_raw, hap_length = hap_length,
                           calc_hom_def = calc_hom_def,
                           .progress = TRUE,
                           .options = furrr_options(seed = 123))
@@ -149,10 +149,13 @@ run_hap_hom_by_chr <- function(chr) {
                 simplify_all() %>% 
                 .$result %>% 
                 bind_rows()
-
+        
+        # write to folder by haplotype length
         file_name <- glue("hap_res_chr_{chr}.txt")
-        write_delim(results, here("output", file_name), "\t")
+        dir_name <- here("output",glue("hap_len_{hap_length}"))
+        dir.create(dir_name)
+        write_delim(results, glue("{dir_name}/{file_name}"), "\t")
         
 }
 
-walk(26:1, run_hap_hom_by_chr)
+walk(1:26, run_hap_hom_by_chr)
