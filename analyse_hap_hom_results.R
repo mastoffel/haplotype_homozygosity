@@ -2,13 +2,18 @@ library(tidyverse)
 library(here)
 
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_hom_results_length_30"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_len_100"), full.names = TRUE)
 results <- map(all_files, read_delim, delim = "\t") %>% 
                 bind_rows()
 
+# any potential lethals?
+results %>% 
+        filter(obs == 0 & exp > 9)
+
 res2 <- results %>% 
-        #filter(p_val < 0.005) %>% 
-        filter(chr == 2)
+        filter(obs < exp) %>% 
+        filter(p_val < 0.05) #%>% 
+        #filter(chr == 2)
 
 ggplot(res2, aes(snp_start, -log10(p_val))) + 
         geom_point(size = 1, alpha = 1) +
@@ -18,13 +23,15 @@ ggplot(res2, aes(snp_start, -log10(p_val))) +
 
 -log10(0.05/38000)
 
-res3 <- results %>% 
-        filter(p_val < (0.05/38000))
+results %>% 
+        filter(p_val < (0.05/40000)) %>% 
+        filter(chr == 4) %>% 
+        arrange(p_val)
 
 snp_map <- read_delim(here("data", "plink", "sheep.bim"), delim = "\t",
                       col_names = FALSE) %>% 
                         setNames(c("chr", "snp", "cM", "bp", "a1", "a2")) %>% 
-                        filter(chr == 6)
+                        filter(chr == 17)
 
-snp_map[1558, ]
+
 
