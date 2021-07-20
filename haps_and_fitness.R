@@ -15,7 +15,7 @@ fitness <- fitness_data %>%
 
 # target haplotypes:
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_len_20"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_len_10"), full.names = TRUE)
 results <- map(all_files, read_delim, delim = "\t") %>% 
         bind_rows()
 
