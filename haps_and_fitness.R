@@ -15,7 +15,7 @@ fitness <- fitness_data %>%
 
 # target haplotypes:
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_len_10"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_len_50"), full.names = TRUE)
 results <- map(all_files, read_delim, delim = "\t") %>% 
         bind_rows()
 
@@ -131,12 +131,16 @@ haps_all %>%
         group_by(region, id) %>% 
         summarise(lifespan = max(lifespan),
                   gt = first(gt),
-                  sex = first(sex)) %>% 
-        ggplot(aes(gt, lifespan, color = sex)) +
+                  sex = first(sex)) %>%
+        filter(sex == "F") %>% 
+        ggplot(aes(gt, lifespan)) +
                 facet_wrap(~region) +
-                geom_boxplot() +
-        theme_minimal() +
-        scale_y_log10()
+                geom_boxplot(outlier.color=NA) +
+                geom_jitter(pch = 21, size = 0.5, alpha = 0.3) +
+                           #position = position_jitterdodge()) +
+                #scale_y_log10() +
+                scale_fill_viridis_d() +
+                theme_simple()
 
 pal <- wes_palette("Darjeeling2", 2)
 
@@ -157,10 +161,14 @@ haps_all %>%
         summarise(LRS = sum(offspring_survived, na.rm = TRUE),
                   sex = first(sex),
                   gt = first(gt)) %>%  
-        ggplot(aes(gt, LRS, color = sex)) +
+        drop_na() %>% 
+        ggplot(aes(gt, LRS, fill = sex)) +
         facet_wrap(~region) +
-        geom_boxplot() +
-        scale_y_log10()
+        geom_boxplot(outlier.color=NA) +
+        geom_point(pch = 21, size = 0.5, alpha = 0.3, 
+                   position = position_jitterdodge()) +
+        scale_y_log10() +
+        scale_fill_viridis_d()
 
 mod_dat <- haps_all %>% 
         

@@ -4,7 +4,7 @@ source("theme_simple.R")
 library(patchwork)
 
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_len_50"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_len_100"), full.names = TRUE)
 res_full <- map(all_files, read_delim, delim = "\t") %>% 
                 bind_rows() %>% 
                 rename(snp_num = snp_start)
@@ -54,7 +54,7 @@ cols <- c("#336B87", "#2A3132")
 cols <- viridis(2)
 eff_tests <- 2*39149
 
-p4 <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
+p5 <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
         geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
         geom_point(data = gwas_plot %>% filter(-log10(p_val) <= -log10(0.05/(eff_tests))),
                    aes(color = chromosome %%2 == 0),#shape = roh_prevalence  #fill = chromosome %%2 == 0
@@ -72,27 +72,11 @@ p4 <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         theme(axis.text = element_text(color = "black"), # axis.text.x size 8
               axis.ticks = element_line(size = 0.1)) +
         guides(fill=FALSE, color = FALSE) +
-        ggtitle("Haplotype length: 50 SNPs")
+        ggtitle("Haplotype length: 100 SNPs")
 
-p4
-
-ggplot(res2, aes(snp_start, -log10(p_val))) + 
-        geom_point(size = 1, alpha = 1) +
-        facet_wrap(~chr, scales = "free_x") +
-        geom_hline(yintercept = -log10(0.05/38000)) #+
-       # ylim(c(0, 8))
-
--log10(0.05/38000)
-
-results %>% 
-        filter(p_val < (0.05/40000)) %>% 
-        filter(chr == 4) %>% 
-        arrange(p_val)
-
-snp_map <- read_delim(here("data", "plink", "sheep.bim"), delim = "\t",
-                      col_names = FALSE) %>% 
-                        setNames(c("chr", "snp", "cM", "bp", "a1", "a2")) %>% 
-                        filter(chr == 17)
+p5
 
 
-
+# run script a few times ...
+p_final <- p2 / p1 / p3 / p4 / p5
+ggsave("figs/manhattans.jpg", p_final, width = 6, height = 10)
