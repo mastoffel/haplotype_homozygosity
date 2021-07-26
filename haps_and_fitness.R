@@ -4,6 +4,7 @@ library(glue)
 library(data.table)
 library(broom.mixed)
 library(wesanderson)
+source("theme_simple.R")
 # fitness
 load("data/fitness_roh.RData") 
 fitness <- fitness_data %>% 
@@ -13,9 +14,18 @@ fitness <- fitness_data %>%
                 group_by(id) %>% 
                 mutate(lifespan = max(age))
 
+# snp map
+snp_map <- fread(here("data", "plink", "sheep.bim")) %>% 
+  setNames(c("chr", "snp", "cM", "pos", "a", "b")) %>% 
+  select(chr, snp, pos) %>% 
+  group_by(chr) %>% 
+  mutate(number = 1,
+         snp_num = cumsum(number)) %>% 
+  select(-number)
+
 # target haplotypes:
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_len_50"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_results_imputed", "hap_len_200"), full.names = TRUE)
 results <- map(all_files, read_delim, delim = "\t") %>% 
         bind_rows()
 
@@ -25,7 +35,7 @@ top_haps <- results %>%
         # get haplotypes which are significant because there are fewer homozyous
         # haplotypes as expected
         filter(obs < exp) %>% 
-        filter(p_val < (0.05/38000)) %>%
+        filter(p_val < (0.05/39149)) %>%
         arrange(chr, snp_start) %>% 
         # workflow to get only one haplotype per genome-region
         group_by(chr) %>% 
@@ -53,9 +63,9 @@ top_haps <- results %>%
 #hap_length <- 100
 #chr <- top_haps$chr[1]
 #snp_start <- top_haps$snp_start[1]
-chr <- 17
-top_hap <- "0010010010"
-snp_start <- 1798
+#chr <- 17
+#top_hap <- "0010010010"
+#snp_start <- 1798
 
 # take top haplotype and get genotypes for hom/het/alt_hom 
 hap_to_geno <- function(i, top_haps) {
@@ -88,6 +98,7 @@ hap_to_geno <- function(i, top_haps) {
         snp_start <- top_hap$snp_start
         hap_length <- str_count(top_hap$hap)
         
+        # combine genotypes to haplotypes
         haps <- apply(haps_raw[snp_start:(snp_start+hap_length-1), ],
                       paste, collapse = "", MARGIN = 2) %>% 
                 enframe(name = "id_hap", value = "hap") %>% 
@@ -125,20 +136,32 @@ haps_all <- haps %>%
         mutate(id = as.character(id)) %>% 
         left_join(fitness) %>% 
         mutate(gt = as.factor(gt))
+# top haplotype genotypes per individual
+haps_ind <- haps %>% 
+            setNames(top_haps$region) %>% 
+            bind_rows(.id = "region") %>% 
+            write_delim(here("output", "sheep_top_haps.txt"), " ")
 
 # lifespan
+haps_all %>% 
+  group_by(region, id) %>% 
+  summarise(lifespan = max(lifespan),
+            gt = first(gt),
+            sex = first(sex))
+  
+
 haps_all %>% 
         group_by(region, id) %>% 
         summarise(lifespan = max(lifespan),
                   gt = first(gt),
                   sex = first(sex)) %>%
-        filter(sex == "F") %>% 
-        ggplot(aes(gt, lifespan)) +
+        #filter(sex == "M") %>% 
+        ggplot(aes(gt, lifespan, color = sex)) +
                 facet_wrap(~region) +
                 geom_boxplot(outlier.color=NA) +
-                geom_jitter(pch = 21, size = 0.5, alpha = 0.3) +
-                           #position = position_jitterdodge()) +
-                #scale_y_log10() +
+                geom_point(pch = 21, size = 0.5, alpha = 0.3,
+                           position = position_jitterdodge()) +
+                scale_y_log10() +
                 scale_fill_viridis_d() +
                 theme_simple()
 
@@ -165,9 +188,10 @@ haps_all %>%
         ggplot(aes(gt, LRS, fill = sex)) +
         facet_wrap(~region) +
         geom_boxplot(outlier.color=NA) +
-        geom_point(pch = 21, size = 0.5, alpha = 0.3, 
-                   position = position_jitterdodge()) +
-        scale_y_log10() +
+       # geom_point(pch = 21, size = 0.5, alpha = 0.3, 
+        #           position = position_jitterdodge()) +
+        #scale_y_log10() +
+
         scale_fill_viridis_d()
 
 mod_dat <- haps_all %>% 

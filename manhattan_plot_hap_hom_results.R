@@ -2,16 +2,20 @@ library(tidyverse)
 library(here)
 source("theme_simple.R")
 library(patchwork)
-
+library(data.table)
+library(GWASTools)
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_len_100"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_results_imputed", "hap_len_200"), full.names = TRUE)
 res_full <- map(all_files, read_delim, delim = "\t") %>% 
                 bind_rows() %>% 
                 rename(snp_num = snp_start)
-
+qqPlot(res_full$p_val)
 # any potential lethals?
 res_full %>% 
-        filter(obs == 0 & exp > 8)
+        filter(obs == 0 & exp > 6)
+res_full %>% 
+        filter(chr == 18) %>% 
+        arrange(p_val)
 
 # snp map
 snp_map <- fread(here("data", "plink", "sheep.bim")) %>% 
@@ -54,7 +58,7 @@ cols <- c("#336B87", "#2A3132")
 cols <- viridis(2)
 eff_tests <- 2*39149
 
-p5 <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
+p6 <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
         geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
         geom_point(data = gwas_plot %>% filter(-log10(p_val) <= -log10(0.05/(eff_tests))),
                    aes(color = chromosome %%2 == 0),#shape = roh_prevalence  #fill = chromosome %%2 == 0
@@ -72,11 +76,11 @@ p5 <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         theme(axis.text = element_text(color = "black"), # axis.text.x size 8
               axis.ticks = element_line(size = 0.1)) +
         guides(fill=FALSE, color = FALSE) +
-        ggtitle("Haplotype length: 100 SNPs")
+        ggtitle("400K | Haplotype length: 400 SNPs")
 
-p5
+p1
 
 
 # run script a few times ...
-p_final <- p2 / p1 / p3 / p4 / p5
-ggsave("figs/manhattans.jpg", p_final, width = 6, height = 10)
+p_final <- p1 / p2 / p3 / p4 / p5 / p6
+ggsave("figs/manhattans_imputed.jpg", p_final, width = 6, height = 12)
