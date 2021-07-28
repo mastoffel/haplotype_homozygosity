@@ -41,7 +41,7 @@ cons <- consorts %>%
 table(cons$mounts)
 
 # first approach: take females which mated a second time after two week
-# assuming that the pregnancy failed
+# assuming that the pregnancy failed. Take only
 pot_failed_matings <- cons %>% 
         mutate(month = month(date),
                year = year(date)) %>% 
@@ -56,7 +56,7 @@ pot_failed_matings <- cons %>%
         arrange(year, ewe_id, date) %>% 
         mutate(time_lag = date - lag(date)) %>% 
         # filter ewes where any two consorts are at least 10 days apart
-        filter(any(time_lag > 14)) %>% 
+        filter(any(time_lag > 7)) %>% 
         # first mating gets NA, so rather give it 0
         mutate(time_lag = ifelse(is.na(time_lag), 0, time_lag)) %>% 
         # filter matings before the gap (potentially failed pregnancies)
@@ -65,16 +65,30 @@ pot_failed_matings <- cons %>%
         filter(!is.na(tup_id)) %>% 
         # filter all which were mated/seen mated only once in the previous estrous
         filter(n() == 1) %>% 
-        select(date, tup_id, ewe_id)
+        select(date, tup_id, ewe_id) %>% 
+        mutate(failed = 1)
+
+pot_succ_matings <- cons %>% 
+        mutate(month = month(date),
+               year = year(date)) %>% 
+        # this finds ewes mating with several males
+        group_by(year, ewe_id) %>% 
+        #filter(mounts == -1) %>% 
+        #filter(year > 2000) %>% 
+        filter(length(unique(tup_id))==1) %>% 
+        arrange(ewe_id) %>%
+        select(date, tup_id, ewe_id) %>% 
+        mutate(failed = 0) 
+
+# combine        
+all_matings <- bind_rows(pot_failed_matings, pot_succ_matings)
 
 # load haplotypes
 haps <- read_delim(here("output", "sheep_top_haps.txt"), " ") %>% 
                 select(region, id, gt)
 
-# get average frequency of each haplotype
-          0000000000000000000000 <- haps %>% 
-        group_by(region) %>% 
-        summarise(freq = sum(gt)/(n()*2))
+gts <- 
+
 
 # join failed matings \ 2 or 1 means individual carries focal haplotype
 gts <- pot_failed_matings %>% 
