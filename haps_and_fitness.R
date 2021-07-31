@@ -26,7 +26,7 @@ snp_map <- fread(here("data", "plink", "sheep.bim")) %>%
 
 # target haplotypes:
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_results_imputed", "hap_len_200"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_results_imputed", "hap_len_500"), full.names = TRUE)
 results <- map(all_files, read_delim, delim = "\t") %>% 
         bind_rows()
 
@@ -36,7 +36,7 @@ top_haps <- results %>%
         # get haplotypes which are significant because there are fewer homozyous
         # haplotypes as expected
         filter(obs < exp) %>% 
-        filter(p_val < (0.05/417373)) %>% # 417373 # 39184
+        filter(p_val < (0.05/39184)) %>% # 417373 # 39184
         arrange(chr, snp_start) %>% 
         # workflow to get only one haplotype per genome-region
         group_by(chr) %>% 
@@ -46,7 +46,7 @@ top_haps <- results %>%
         mutate(lag1 = lag(snp_start),
                diff = snp_start - lag1,
                diff = ifelse(is.na(diff), snp_start, diff)) %>% 
-        mutate(region_start = ifelse(diff < 10, NA, snp_start)) %>% 
+        mutate(region_start = ifelse(diff < 100, NA, snp_start)) %>% 
         fill(region_start) %>% 
         # mutate(lag1 = lag(snp_start, default = -1000),
         #        diff = snp_start - lag1) %>% 
@@ -147,11 +147,12 @@ haps_all <- haps %>%
 haps_ind <- haps %>% 
             setNames(top_haps$region) %>% 
             bind_rows(.id = "region") %>% 
-            write_delim(here("output", "sheep_top_haps.txt"), " ")
+            write_delim(here("output", "sheep_top_haps_500.txt"), " ")
 
 # haplotype frequency over time
 focal_hap <- top_haps$hap[1]
 haps_all %>% 
+  filter(as.numeric(as.character(birth_year)) > 1990) %>% 
   group_by(birth_year, region) %>% 
   summarise(freq = sum(gt) / (n()*2)) %>% 
   ungroup() %>% 
@@ -179,11 +180,11 @@ survival_mod <- function(location, haps_all, s) {
             filter(region == location) %>% 
             mutate(gt = as.factor(gt),
                    froh_scaled = scale(froh_all))
-  fit <- glmer(survival ~ gt +  sex + twin + froh_scaled + (1|sheep_year) + (1|birth_year) + (1|mum_id) + (1|id),
+  fit <- glmer(survival ~ gt + sex + twin + froh_scaled + (1|sheep_year) + (1|birth_year) + (1|id),
                data = dat, family = binomial,
                control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
   fit %>% 
-    tidy() %>% 
+    tidy(conf.int = TRUE) %>% 
     mutate_if(is.numeric, round, 5)
 }
 
@@ -192,6 +193,29 @@ survival <- map(locations, survival_mod, haps_all, "F")
 survival_f <- map(locations, survival_mod, haps_all, "F")
 survival_m <- map(locations, survival_mod, haps_all, "M")
 
+# haplotype effects on first year survival?
+# haplotype effects on annual survival?
+survival_mod2 <- function(location, haps_all, s) {
+  
+  dat <- haps_all %>% 
+    filter(region == location,
+           #sex == s,
+           age == 0) %>% 
+    mutate(gt = as.factor(gt),
+           froh_scaled = scale(froh_all))
+  fit <- glmer(survival ~ gt + sex + twin + froh_scaled + (1|birth_year) + (1|mum_id),
+               data = dat, family = binomial,
+               control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
+  fit %>% 
+    tidy(conf.int = TRUE) %>% 
+    mutate_if(is.numeric, round, 5)
+}
+
+locations <- unique(haps_all$region)
+survival <- map(locations, survival_mod, haps_all, "F")
+survival2_f <- map(locations, survival_mod, haps_all, "F")
+survival2_m <- map(locations, survival_mod, haps_all, "M")
+
 # reproduction
 lrs_mod <- function(location, haps_all, s) {
   
@@ -199,12 +223,13 @@ lrs_mod <- function(location, haps_all, s) {
     filter(region == location,
            sex == s) %>% 
     mutate(gt = as.factor(gt),
-           olre = 1:nrow(.))
-  fit <- glmer(offspring_born ~ gt + froh_all + twin + (1|sheep_year) + (1|birth_year) + (1|id) + (1|olre),
+           olre = 1:nrow(.),
+           froh_scaled = scale(froh_all))
+  fit <- glmer(offspring_born ~ gt + froh_scaled + twin + (1|sheep_year) + (1|birth_year) + (1|id) + (1|olre),
                data = dat, family = poisson,
                control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
   fit %>% 
-    tidy() %>% 
+    tidy(conf.int = TRUE) %>% 
     mutate_if(is.numeric, round, 5)
 }
 
@@ -225,14 +250,13 @@ weight_mod <- function(location, haps_all, s) {
   fit <- lmer(weight ~ gt + froh_all + twin + (1|sheep_year) + (1|birth_year) + (1|mum_id),
                data = dat)
   fit %>% 
-    tidy() %>% 
+    tidy(conf.int = TRUE) %>% 
     mutate_if(is.numeric, round, 5)
 }
 
 locations <- unique(haps_all$region)
 weight_f <- map(locations, weight_mod, haps_all, "F")
 weight_m <- map(locations, weight_mod, haps_all, "M")
-
 
 
 # traits: first hindleg

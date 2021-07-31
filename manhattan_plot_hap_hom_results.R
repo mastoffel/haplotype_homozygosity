@@ -5,14 +5,19 @@ library(patchwork)
 library(data.table)
 library(GWASTools)
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_results_imputed", "hap_len_200"), full.names = TRUE)
-res_full <- map(all_files, read_delim, delim = "\t") %>% 
+all_files <- list.files(here("output", "hap_results_imputed", "hap_len_600"), full.names = TRUE)
+res_full <- map(all_files, fread) %>% 
                 bind_rows() %>% 
-                rename(snp_num = snp_start)
+                rename(snp_num = snp_start) %>% 
+                as_tibble() %>% 
+                filter(obs < exp) %>% 
+                filter(p_val < 0.1) 
+
 qqPlot(res_full$p_val)
 # any potential lethals?
 res_full %>% 
-        filter(obs == 0 & exp > 6)
+        filter(obs == 0 & exp > 9) %>% 
+        print(n = 30)
 res_full %>% 
         filter(chr == 18) %>% 
         arrange(p_val)
@@ -27,8 +32,6 @@ snp_map <- fread(here("data", "plink", "sheep.bim")) %>%
         select(-number)
 #
 res <- res_full %>% 
-        filter(obs < exp) %>% 
-        filter(p_val < 0.1) %>% 
         left_join(snp_map, by = c("chr", "snp_num"))
 
 # chromosome info from assembly
@@ -56,7 +59,7 @@ chr_labels_full <- as.character(1:26)
 cols <- c("#336B87", "#2A3132")
 
 cols <- viridis(2)
-eff_tests <- 2*39149
+eff_tests <- 39149
 
 p6 <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
         geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
@@ -78,7 +81,7 @@ p6 <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         guides(fill=FALSE, color = FALSE) +
         ggtitle("400K | Haplotype length: 400 SNPs")
 
-p1
+p6
 
 
 # run script a few times ...
