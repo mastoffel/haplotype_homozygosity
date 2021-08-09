@@ -1,4 +1,3 @@
-library(RJDBC)
 library(dplyr)
 library(dbplyr)
 library(lubridate)
@@ -17,7 +16,9 @@ fitness <- fitness_data %>%
         group_by(id) %>% 
         mutate(lifespan = max(age)) %>% 
         mutate(id = as.numeric(id),
-               year_mating = as.numeric(as.character(sheep_year)) - 1)
+               year_mating = as.numeric(as.character(sheep_year)) - 1) %>% 
+        filter(age == 0) %>% 
+        select(id, froh_all, year_mating, offspring_born)
 
 # consorts
 consorts <- read_delim("data/consorts.txt", " ")
@@ -49,7 +50,7 @@ pot_failed_matings <- cons %>%
         arrange(year, ewe_id, date) %>% 
         mutate(time_lag = date - lag(date)) %>% 
         # filter ewes where any two consorts are at least 10 days apart
-        filter(any(time_lag > 7)) %>% 
+        filter(any(time_lag > 10)) %>% 
         # first mating gets NA, so rather give it 0
         mutate(time_lag = ifelse(is.na(time_lag), 0, time_lag)) %>% 
         # filter matings before the gap (potentially failed pregnancies)
@@ -109,7 +110,7 @@ carrier_matings <- all_matings %>%
                 gt.x > 0 & gt.y > 0 ~ "c_c",
                 TRUE ~ "aa"
         )) %>% 
-        left_join(fitness %>% filter(age ==0) %>%  select(id, froh_all), by = c("ewe_id" = "id"))
+        left_join(fitness, by = c("ewe_id" = "id"))
 
 
 # run models
@@ -127,7 +128,10 @@ nlopt <- function(par, fn, lower, upper, control) {
 
 options(pillar.sigfig = 4)
 ins_effects <- function(hap, carrier_matings) {
-        carrier_matings_sub <- carrier_matings %>% filter(region == hap)
+        carrier_matings_sub <- carrier_matings %>% 
+                                        filter(region == hap)# %>% 
+                                        #group_by(ewe_id) %>% 
+                                        #slice(1)
         
         # ewes <- sort(table( carrier_matings_sub$ewe_id))
         # keep_ewes <- names(ewes)[ewes < 6]
@@ -136,23 +140,25 @@ ins_effects <- function(hap, carrier_matings) {
         fit <- glmer(failed ~ mating_type + scale(froh_all) + (1|year), #+ (1|obs2),
                      family = binomial, data = carrier_matings_sub,
                      control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
-        # fit <- glm(failed ~ mating_type, #+ (1|obs2),
-        #              family = binomial, data = carrier_matings_sub)
-        fit %>% 
-                tidy(conf.int = TRUE)
+        fit
 }
+
+all_regions <- map(unique(carrier_matings$region), ins_effects, carrier_matings)
+names(all_regions) <- unique(carrier_matings$region)
+saveRDS(all_regions, file = "output/ins_effects_500.rds")
+
+map(all_regions, tidy, conf.int = TRUE)
+plot_model(all_regions[[1]], type = "pred", terms = c("mating_type"))
 
 all_regions <- map_dfr(unique(carrier_matings$region), 
                        ins_effects, carrier_matings, .id = "region")        
 
-print(all_regions, n = 24)
+print(all_regions, n = 40)
 
-carrier_matings %>% 
-        group_by(region) %>% 
         
 
 library(brms)
-fit <- brm(failed ~ mating_type + (1|year) + (1|ewe_id), 
+fit <- brm(failed ~ mating_type + scale(froh_all) + (1|year) + (1|ewe_id), 
            data = carrier_matings_sub, family = bernoulli)
 
 # second approach: which matings did not lead to offspring the next year?
@@ -177,10 +183,10 @@ matings_offsp <- cons %>%
         rename(year_mating = year) %>% 
         #filter(year_mating > 1992) %>% 
        # filter(offspring_born == 0) %>% 
-        select(date, tup_id, ewe_id, offspring_born, survival, froh_all) %>% 
+        select(date, tup_id, ewe_id, offspring_born, froh_all) %>% 
         left_join(haps, by = c("tup_id" = "id")) %>% 
         left_join(haps, by = c("ewe_id" = "id", "region" = "region")) %>% 
-        filter(!is.na(gt.x) & !is.na(gt.y) )%>% 
+        filter(!is.na(gt.x) & !is.na(gt.y))%>% 
         mutate(mating_type = case_when(
                 gt.x > 0 & gt.y > 0 ~ "c_c",
                 gt.x == 0 & gt.y > 0 ~ "c_nonc",
@@ -196,14 +202,19 @@ matings_offsp <- cons %>%
 
 
 offspring_mod <- function(hap, matings_offsp) {
-        matings_offsp_sub <- matings_offsp %>% filter(region == hap)
-        fit <- glmer(rs ~ mating_type + scale(froh_all) + (1|year_mating),
+        matings_offsp_sub <- matings_offsp %>% 
+                                filter(region == hap) %>% 
+                                mutate(froh_std = scale(froh_all))
+        fit <- glmer(rs ~ mating_type + froh_std + (1|year_mating),
                      family = binomial, data = matings_offsp_sub)
-        fit %>% 
-                tidy(conf.int = TRUE)
+        fit
 }
+
+all_regions_rs <- map(unique(carrier_matings$region), 
+                      offspring_mod, matings_offsp)
 
 all_regions <- map_dfr(unique(carrier_matings$region), 
                        offspring_mod, matings_offsp, .id = "region")        
+
 
 print(all_regions, n = 24)
