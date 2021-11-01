@@ -11,6 +11,9 @@ library(broom.mixed)
 library(wesanderson)
 source("theme_simple.R")
 library(lme4)
+library(performance)
+library(sjPlot)
+
 # fitness
 load("data/fitness_roh.RData") 
 fitness <- fitness_data %>% 
@@ -73,7 +76,8 @@ top_haps <- results %>%
         arrange(p_val) %>% 
         filter(row_number()==1) 
       
-  
+55/99.75
+
 # (1) get haplotypes for all individuals 
 #hap_length <- 100
 #chr <- top_haps$chr[1]
@@ -163,6 +167,7 @@ haps_ind <- haps %>%
 #write_delim(haps_all, here("output", "haps_all_500.txt"), " ")
 
 focal_hap <- top_haps$hap[1]
+
 haps_all %>% 
   filter(as.numeric(as.character(birth_year)) > 1990) %>% 
   group_by(birth_year, region) %>% 
@@ -185,7 +190,43 @@ nlopt <- function(par, fn, lower, upper, control) {
   )
 }
 
- # haplotype effects on annual survival?
+ 
+# haplotype effects on first year survival?
+# haplotype effects on annual survival?
+survival_mod <- function(location, haps_all) {
+  
+  dat <- haps_all %>% 
+    filter(region == location,
+           #sex == s,
+           age == 0) %>% 
+    mutate(gt = as.factor(gt),
+           froh_std = as.numeric(scale(froh_all)))
+  fit <- glmer(survival ~ gt + twin +  froh_std + (1|birth_year) + (1|mum_id),
+               data = dat, family = binomial(link = "logit"),
+               control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
+  # fit %>% 
+  #   tidy(conf.int = TRUE) %>% 
+  #   mutate_if(is.numeric, round, 5)
+}
+
+locations <- unique(haps_all$region)
+survival <- map(locations, survival_mod, haps_all)
+map(survival, tidy, conf.int=TRUE)
+#survival2_f <- map(locations, survival_mod, haps_all, "F")
+#survival2_m <- map(locations, survival_mod, haps_all, "M")
+
+library(equatiomatic)
+extract_eq(survival[[1]])
+
+
+
+
+
+
+
+
+
+# haplotype effects on annual survival?
 survival_mod <- function(location, haps_all) {
   
   dat <- haps_all %>% 
@@ -205,8 +246,8 @@ survival_mod <- function(location, haps_all) {
                      age > 4 ~ "late_life",
                    )) 
   
-  fit <- glmer(survival ~ gt + sex + twin + froh_std + lamb + age_std * sex + age_std2 * sex + (1|sheep_year) + (1|birth_year) + (1|id),
-               data = dat, family = binomial(link = "probit"), 
+  fit <- glmer(survival ~ gt + twin + froh_std + life_stage * sex + (1|sheep_year) + (1|birth_year) + (1|id),
+               data = dat, family = binomial(link = "logit"), 
                control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
   fit
   # fit %>% 
@@ -219,12 +260,14 @@ survival <- map(locations, survival_mod, haps_all)
 names(survival) <- locations
 survival
 
-saveRDS(survival, file = "output/surv_mods_hap500.rds")
+saveRDS(survival, file = "output/lifetimesurv_mods_hap500.rds")
 
 #survival_f <- map(locations, survival_mod, haps_all, "F")
 #survival_m <- map(locations, survival_mod, haps_all, "M")
 library(performance)
+library(sjPlot)
 map(survival, tidy, conf.int=TRUE)
+plot_model(survival[[3]], type = "pred", terms = "gt")
 binned_residuals(survival[[2]])
 
 
@@ -233,28 +276,7 @@ fit_brm <- brm(survival ~ gt + sex + twin + froh_std + life_stage * sex + (1|she
                data = dat, family = bernoulli(link = "logit"))
 
 
-# haplotype effects on first year survival?
-# haplotype effects on annual survival?
-survival_mod2 <- function(location, haps_all, s) {
-  
-  dat <- haps_all %>% 
-    filter(region == location,
-           sex == s,
-           age == 0) %>% 
-    mutate(gt = as.factor(gt),
-           froh_scaled = scale(froh_all))
-  fit <- glmer(survival ~ gt + twin + froh_scaled + (1|birth_year) + (1|mum_id),
-               data = dat, family = binomial(link = "probit"),
-               control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
-  fit %>% 
-    tidy(conf.int = TRUE) %>% 
-    mutate_if(is.numeric, round, 5)
-}
 
-locations <- unique(haps_all$region)
-survival <- map(locations, survival_mod2, haps_all, "F")
-survival2_f <- map(locations, survival_mod2, haps_all, "F")
-survival2_m <- map(locations, survival_mod2, haps_all, "M")
 
 # reproduction
 lrs_mod <- function(location, haps_all, s) {

@@ -16,6 +16,8 @@ con <- DBI::dbConnect(JDBC(driver, driverpath), options)
 tbls <- dbGetTables(con)
 flds <- dbGetFields(con, "tblPregnancies")
 consorts <- dbGetQuery(con, "Select * from Consorts")
+pregs <- dbGetQuery(con, "Select * from tblPregnancies")
 dbDisconnect(con)
 
 write_delim(consorts, "data/consorts.txt", " ")
+write_delim(pregs, "data/pregnancies.txt", " ")

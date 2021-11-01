@@ -96,10 +96,10 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         scale_color_manual(values = c("#ECEFF4","#d8dee9")) + # #dbe1eb #d1d8e5  "#ECEFF4" #d8dee9
         geom_point(data = gwas_plot %>% filter(highlight %in% c(1)) %>%
                            filter(p_val < 0.05/(eff_tests)),
-                   size = 3, shape = 21, stroke = 0.2, fill = "#94350b", color = "black") +
+                   size = 2.5, shape = 21, stroke = 0.1, fill = "#94350b", color = "black") +
         geom_point(data = gwas_plot %>% filter(highlight %in% c(2)) %>%
                            filter(p_val < 0.05/(eff_tests)),
-                   size = 3, shape = 21, stroke = 0.2, fill = "#ccbe9b", color = "black") + 
+                   size = 2.5, shape = 21, stroke = 0.1, fill = "#ccbe9b", color = "black") + 
         theme_simple(axis_lines = TRUE, grid_lines = FALSE) +
         theme(axis.text = element_text(color = "black"), # axis.text.x size 8
               axis.ticks = element_line(size = 0.1)) +
@@ -108,27 +108,27 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
 
 p_gwas
 
-p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
-        geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
-        geom_point(data = gwas_plot %>% filter(-log10(p_val) <= -log10(0.05/(eff_tests))),
-                   aes(color = chromosome %%2 == 0),#shape = roh_prevalence  #fill = chromosome %%2 == 0
-                   size = 0.8) +
-        geom_point(data = gwas_plot %>% filter(-log10(p_val) > -log10(0.05/(eff_tests))), 
-                   mapping = aes(fill = chromosome %%2 == 0), # aes(fill = direction),  0.00001
-                   size = 2, shape = 21, stroke = 0.3, color = "grey") +
-        scale_x_continuous(labels = chr_labels, breaks= axisdf$center) +
-        scale_y_continuous(expand = c(0, 0), limits = c(0,9), labels = as.character(0:8), breaks = 0:8) +
-        xlab("Chromosome") + 
-        ylab(expression(-log[10](italic(p)))) +
-        scale_fill_manual(values = c("#ECEFF4","#d8dee9")) +
-        scale_color_manual(values = c("#ECEFF4","#d8dee9")) + # #dbe1eb #d1d8e5  "#ECEFF4" #d8dee9
-        theme_simple(axis_lines = TRUE, grid_lines = FALSE) +
-        theme(axis.text = element_text(color = "black"), # axis.text.x size 8
-              axis.ticks = element_line(size = 0.1)) +
-        guides(fill=FALSE, color = FALSE)# +
+# p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
+#         geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
+#         geom_point(data = gwas_plot %>% filter(-log10(p_val) <= -log10(0.05/(eff_tests))),
+#                    aes(color = chromosome %%2 == 0),#shape = roh_prevalence  #fill = chromosome %%2 == 0
+#                    size = 0.8) +
+#         geom_point(data = gwas_plot %>% filter(-log10(p_val) > -log10(0.05/(eff_tests))), 
+#                    mapping = aes(fill = chromosome %%2 == 0), # aes(fill = direction),  0.00001
+#                    size = 2, shape = 21, stroke = 0.3, color = "grey") +
+#         scale_x_continuous(labels = chr_labels, breaks= axisdf$center) +
+#         scale_y_continuous(expand = c(0, 0), limits = c(0,9), labels = as.character(0:8), breaks = 0:8) +
+#         xlab("Chromosome") + 
+#         ylab(expression(-log[10](italic(p)))) +
+#         scale_fill_manual(values = c("#ECEFF4","#d8dee9")) +
+#         scale_color_manual(values = c("#ECEFF4","#d8dee9")) + # #dbe1eb #d1d8e5  "#ECEFF4" #d8dee9
+#         theme_simple(axis_lines = TRUE, grid_lines = FALSE) +
+#         theme(axis.text = element_text(color = "black"), # axis.text.x size 8
+#               axis.ticks = element_line(size = 0.1)) +
+#         guides(fill=FALSE, color = FALSE)# +
        # ggtitle("Haplotype length: 500 SNPs")
 
-p_gwas
+#p_gwas
 
 
 # run script a few times ...
@@ -174,12 +174,12 @@ p_failed <- marg_df %>%
         #group_by(region) %>% 
         ggplot(aes(mating_type, predicted, color = highlight)) +
       
-        geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, size = 0.2)+
-        geom_point(size = 2) +
+        geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, size = 0.5)+
+        geom_point(size = 2.5) +
         #geom_smooth(method = "lm", se = FALSE) +
         facet_wrap(~region, ncol = 4) +
         theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
-        ylab("Probability of\nfailed pregnancy") +
+        ylab("Probability of\nfailed insemination") +
         xlab("Mating type") +
        #scale_alpha_manual(values = c(0.5, 1)) +
         scale_color_manual(values = c("#ccbe9b", "#94350b")) +
@@ -198,6 +198,7 @@ p_failed <- marg_df %>%
 # marg_effs <- ggpredict(surv_mods[[4]], terms = c("lamb", "gt"))
 # plot_model(surv_mods[[1]], type = "pred", terms = c("lamb", "gt"))
 
-p_gwas / p_freq / p_failed   +
+p_final <- p_gwas / p_freq / p_failed   +
         plot_layout(heights = c(1.6, 1, 1)) +
         plot_annotation(tag_levels = "A")
+ggsave("figs/haplotype_fig1.jpg", width = 7, height = 6)

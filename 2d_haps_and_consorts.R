@@ -17,11 +17,18 @@ fitness <- fitness_data %>%
         mutate(lifespan = max(age)) %>% 
         mutate(id = as.numeric(id),
                year_mating = as.numeric(as.character(sheep_year)) - 1) %>% 
-        filter(age == 0) %>% 
-        select(id, froh_all, year_mating, offspring_born)
+        #filter(age == 0) %>% 
+        select(id, froh_all, year_mating, sex, offspring_born, mum_id) %>% 
+        mutate(mum_id = as.numeric(as.character(mum_id)))
 
 # consorts
 consorts <- read_delim("data/consorts.txt", " ")
+# pregnancies
+pregs <- read_delim("data/pregnancies.txt") %>% 
+                rename(ewe_id = MumID) %>% 
+                mutate(birth_date = mdy(paste(BirthMonth, BirthDay, BirthYear, "|"))) %>% 
+                mutate(year_conc = BirthYear - 1) %>% 
+                select(ewe_id, birth_date, year_conc)
 
 # -1 means mounting observed, 0 means mounting not observed
 cons <- consorts %>% 
@@ -31,14 +38,31 @@ cons <- consorts %>%
         separate(col = time, into = c("out2", "time"), sep = " ") %>% 
         select(-out, -out2) %>% 
         mutate(date = ymd(date),
-               time = hms(time))
+               time = hms(time)) %>% 
+        mutate(month = month(date),
+               year = year(date))
 table(cons$mounts)
+
+# rational failed matings:
+# 1) females which were seen with only one male and didn't give birth
+# the next year
+pot_failed_matings <- cons %>% 
+        group_by(year, ewe_id) %>% 
+        # this finds ewes mating with only one male
+        filter(n_distinct(tup_id) == 1) %>% 
+        arrange(ewe_id) %>% 
+        # who didn't have offspring next year
+        anti_join(fitness, by = c("ewe_id" ="mum_id", "year" = "year_mating")) %>% 
+        filter(!is.na(tup_id)) %>% 
+        slice(1) %>% 
+        #filter(mounts == -1) %>% 
+        select(date, tup_id, ewe_id, obs) %>% 
+        mutate(failed = 1)
+
 
 # first approach: take females which mated a second time after two week
 # assuming that the pregnancy failed. Take only
 pot_failed_matings <- cons %>% 
-        mutate(month = month(date),
-               year = year(date)) %>% 
         group_by(year, ewe_id) %>% 
         #filter(year > 2000) %>% 
         #filter(mounts == -1) %>% 
@@ -46,21 +70,24 @@ pot_failed_matings <- cons %>%
         filter(n() > 1) %>% 
         arrange(desc(ewe_id)) %>% 
         # ewe being consorted by at least two males
-        filter(n_distinct(tup_id) > 1) %>% 
+        #filter(n_distinct(tup_id) > 1) %>% 
         arrange(year, ewe_id, date) %>% 
         mutate(time_lag = date - lag(date)) %>% 
         # filter ewes where any two consorts are at least 10 days apart
-        filter(any(time_lag > 10)) %>% 
+        filter(any(time_lag >= 7)) %>% 
         # first mating gets NA, so rather give it 0
         mutate(time_lag = ifelse(is.na(time_lag), 0, time_lag)) %>% 
         # filter matings before the gap (potentially failed pregnancies)
         slice(1:((match(TRUE, time_lag == max(time_lag)))-1)) %>% 
+        #slice(1:((match(TRUE, time_lag >= 7)-1))) %>%
+        # 
+        # filter all which were mated/seen mated by only only one tup in previous estrous
         # remove unknown tups
         filter(!is.na(tup_id)) %>% 
+        filter(n_distinct(tup_id) == 1) %>% 
+        #filter(year > 1990) %>% 
         # mounting observed
-        filter(mounts == -1) %>% 
-        # filter all which were mated/seen mated only once in the previous estrous
-        #filter(n() == 1) %>% 
+       # filter(mounts == -1) %>% 
         select(date, tup_id, ewe_id, obs) %>% 
         mutate(failed = 1)
 
@@ -73,14 +100,18 @@ pot_succ_matings <- cons %>%
         group_by(year, ewe_id) %>% 
         filter(length(unique(tup_id))==1) %>% 
         # mounting observed
-        filter(mounts == -1) %>% 
+        #filter(mounts == -1) %>% 
         #filter(year > 2000) %>% 
-        arrange(ewe_id) %>%
+        arrange(year,ewe_id) %>%
         select(date, tup_id, ewe_id, obs) %>% 
         filter(!is.na(tup_id)) %>% 
         # if ewe mated with same tup on multiple days in a year, take only
         # one
         slice(1) %>% 
+        inner_join(fitness, by = c("ewe_id" ="mum_id", "year" = "year_mating")) %>% 
+        #mutate(preg_time = birth_date - date) %>% 
+        # filter where pregnancy time is odd or no birth
+        #filter(!is.na(preg_time)) %>% 
         mutate(failed = 0)
 
 # combine        
@@ -110,7 +141,10 @@ carrier_matings <- all_matings %>%
                 gt.x > 0 & gt.y > 0 ~ "c_c",
                 TRUE ~ "aa"
         )) %>% 
-        left_join(fitness, by = c("ewe_id" = "id"))
+        left_join(fitness, by = c("ewe_id" = "id")) %>% 
+        rename(froh_ewe = froh_all) %>% 
+        left_join(fitness[c("id", "froh_all")], by = c("tup_id" = "id")) %>% 
+        rename(froh_tup = froh_all)
 
 
 # run models
@@ -127,19 +161,22 @@ nlopt <- function(par, fn, lower, upper, control) {
 }
 
 options(pillar.sigfig = 4)
+
 ins_effects <- function(hap, carrier_matings) {
         carrier_matings_sub <- carrier_matings %>% 
-                                        filter(region == hap)# %>% 
-                                        #group_by(ewe_id) %>% 
-                                        #slice(1)
+                                        filter(region == hap) %>% 
+                                        mutate(froh_ewe = as.numeric(scale(froh_ewe)),
+                                               froh_tup = as.numeric(scale(froh_tup))) #%>% 
+                                        # group_by(ewe_id) %>% 
+                                        # slice(1)
         
         # ewes <- sort(table( carrier_matings_sub$ewe_id))
         # keep_ewes <- names(ewes)[ewes < 6]
         # carrier_matings_sub <- carrier_matings_sub %>% filter(ewe_id %in% keep_ewes)
         
-        fit <- glmer(failed ~ mating_type + scale(froh_all) + (1|year), #+ (1|obs2),
-                     family = binomial, data = carrier_matings_sub,
-                     control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
+        fit <- glmer(failed ~ mating_type + froh_ewe + (1|year), #+ (1|obs2),
+                     family = binomial, data = carrier_matings_sub)
+                     #control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
         fit
 }
 
@@ -147,8 +184,9 @@ all_regions <- map(unique(carrier_matings$region), ins_effects, carrier_matings)
 names(all_regions) <- unique(carrier_matings$region)
 saveRDS(all_regions, file = "output/ins_effects_500.rds")
 
-map(all_regions, tidy, conf.int = TRUE)
-plot_model(all_regions[[1]], type = "pred", terms = c("mating_type"))
+out <- map(all_regions, tidy, conf.int = TRUE)
+
+plot_model(all_regions[[4]], type = "pred", terms = c("mating_type"))
 
 all_regions <- map_dfr(unique(carrier_matings$region), 
                        ins_effects, carrier_matings, .id = "region")        
@@ -164,7 +202,7 @@ fit <- brm(failed ~ mating_type + scale(froh_all) + (1|year) + (1|ewe_id),
 # second approach: which matings did not lead to offspring the next year?
 matings_offsp <- cons %>% 
         mutate(month = month(date),
-               year = year(date)) %>% 
+               year = as.numeric(year(date))) %>% 
         # this finds ewes mating with several males
         group_by(year, ewe_id) %>% 
         #filter(year > 2000) %>% 
@@ -174,19 +212,21 @@ matings_offsp <- cons %>%
         arrange(desc(ewe_id)) %>% 
         # ewe being consorted by only one male
         filter(n_distinct(tup_id) == 1) %>% 
-        filter(mounts == -1) %>%
+       # filter(mounts == -1) %>%
         arrange(year, ewe_id, date) %>% 
         filter(!is.na(tup_id)) %>% 
         # filter all which were mated/seen mated only once in the previous estrous
         slice(1) %>% 
-        left_join(fitness, by = c("ewe_id" = "id", "year" = "year_mating")) %>% 
+       # rename(id = ewe_id, year_mating  = year) %>% 
+        #ungroup() %>% 
+        inner_join(fitness, by = c("ewe_id" = "id", "year" = "year_mating")) %>% 
         rename(year_mating = year) %>% 
         #filter(year_mating > 1992) %>% 
        # filter(offspring_born == 0) %>% 
         select(date, tup_id, ewe_id, offspring_born, froh_all) %>% 
         left_join(haps, by = c("tup_id" = "id")) %>% 
         left_join(haps, by = c("ewe_id" = "id", "region" = "region")) %>% 
-        filter(!is.na(gt.x) & !is.na(gt.y))%>% 
+        filter(!is.na(gt.x) & !is.na(gt.y)) %>% 
         mutate(mating_type = case_when(
                 gt.x > 0 & gt.y > 0 ~ "c_c",
                 gt.x == 0 & gt.y > 0 ~ "c_nonc",
@@ -198,20 +238,23 @@ matings_offsp <- cons %>%
                 gt.x > 0 & gt.y > 0 ~ "c_c",
                 TRUE ~ "aa"
         )) %>% 
-        mutate(rs = ifelse(offspring_born > 0, 1, 0))
+        mutate(rs = ifelse(offspring_born > 0, 1, 0)) %>% 
+        ungroup()
 
 
 offspring_mod <- function(hap, matings_offsp) {
         matings_offsp_sub <- matings_offsp %>% 
                                 filter(region == hap) %>% 
-                                mutate(froh_std = scale(froh_all))
-        fit <- glmer(rs ~ mating_type + froh_std + (1|year_mating),
+                                mutate(froh_std = as.numeric(scale(froh_all))) %>% 
+                                mutate(year_mating = as.numeric(year_mating))
+        fit <- glmer(rs ~ mating_type + froh_std + (1|year_mating) + (1|ewe_id) + (1|tup_id),
                      family = binomial, data = matings_offsp_sub)
         fit
 }
 
 all_regions_rs <- map(unique(carrier_matings$region), 
                       offspring_mod, matings_offsp)
+map(all_regions_rs, tidy, conf.int = TRUE)
 
 all_regions <- map_dfr(unique(carrier_matings$region), 
                        offspring_mod, matings_offsp, .id = "region")        
