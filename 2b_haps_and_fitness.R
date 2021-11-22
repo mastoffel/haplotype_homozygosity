@@ -16,12 +16,17 @@ library(sjPlot)
 
 # fitness
 load("data/fitness_roh.RData") 
+age <- fitness_data %>% 
+        select(id, sheep_year, age) %>% 
+        rename(mum_age = age)
 fitness <- fitness_data %>% 
                 select(id, survival, sheep_year, age, birth_year, sex, mum_id,
                        twin, offspring_born, offspring_survived, weight,
                        hindleg, horn, father, froh_all, birthwt) %>% 
                 group_by(id) %>% 
-                mutate(lifespan = max(age))
+                mutate(lifespan = max(age)) %>% 
+                # mother age
+                left_join(age, by = c("mum_id" = "id", "sheep_year"))
 
 # snp map
 snp_map <- fread(here("data", "plink", "sheep.bim")) %>% 
@@ -158,6 +163,7 @@ haps_all <- haps %>%
         #mutate(gt = as.factor(gt))
 
 # top haplotype genotypes per individual
+# save
 haps_ind <- haps %>% 
             setNames(top_haps$region) %>% 
             bind_rows(.id = "region") %>% 
@@ -200,8 +206,12 @@ survival_mod <- function(location, haps_all) {
            #sex == s,
            age == 0) %>% 
     mutate(gt = as.factor(gt),
-           froh_std = as.numeric(scale(froh_all)))
-  fit <- glmer(survival ~ gt + twin +  froh_std + (1|birth_year) + (1|mum_id),
+           froh_std = as.numeric(scale(froh_all)),
+           weight_std = as.numeric(scale(weight)),
+           mum_age_std = as.numeric(scale(mum_age)),
+           mum_age_std2 = mum_age_std^2)
+         #  gt_alt = ifelse(gt == 0 | gt ==1, 0, 1))
+  fit <- glmer(survival ~ gt + sex + froh_std + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
                data = dat, family = binomial(link = "logit"),
                control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
   # fit %>% 
@@ -212,11 +222,17 @@ survival_mod <- function(location, haps_all) {
 locations <- unique(haps_all$region)
 survival <- map(locations, survival_mod, haps_all)
 map(survival, tidy, conf.int=TRUE)
+
+binned_residuals(survival[[1]])
+plot_model(survival[[1]], type = "emm", terms = "twin")
+
 #survival2_f <- map(locations, survival_mod, haps_all, "F")
 #survival2_m <- map(locations, survival_mod, haps_all, "M")
+saveRDS(survival, file = "output/firstyear_surv_mods_hap500.rds")
 
 library(equatiomatic)
 extract_eq(survival[[1]])
+
 
 
 

@@ -16,9 +16,10 @@ fitness <- fitness_data %>%
         group_by(id) %>% 
         mutate(lifespan = max(age)) %>% 
         mutate(id = as.numeric(id),
-               year_mating = as.numeric(as.character(sheep_year)) - 1) %>% 
+               focal_year =  as.numeric(as.character(sheep_year)),
+               year_mating = focal_year - 1) %>% 
         #filter(age == 0) %>% 
-        select(id, froh_all, year_mating, sex, offspring_born, mum_id) %>% 
+        select(id, froh_all, year_mating, focal_year, sex, offspring_born, mum_id, age) %>% 
         mutate(mum_id = as.numeric(as.character(mum_id)))
 
 # consorts
@@ -46,18 +47,22 @@ table(cons$mounts)
 # rational failed matings:
 # 1) females which were seen with only one male and didn't give birth
 # the next year
-pot_failed_matings <- cons %>% 
-        group_by(year, ewe_id) %>% 
-        # this finds ewes mating with only one male
-        filter(n_distinct(tup_id) == 1) %>% 
-        arrange(ewe_id) %>% 
-        # who didn't have offspring next year
-        anti_join(fitness, by = c("ewe_id" ="mum_id", "year" = "year_mating")) %>% 
-        filter(!is.na(tup_id)) %>% 
-        slice(1) %>% 
-        #filter(mounts == -1) %>% 
-        select(date, tup_id, ewe_id, obs) %>% 
-        mutate(failed = 1)
+# this is a little bit boring as it doesn't bring us closer to the mechanism
+# pot_failed_matings <- cons %>% 
+#         group_by(year, ewe_id) %>% 
+#         # this finds ewes mating with only one male
+#         filter(n_distinct(tup_id) == 1) %>% 
+#         arrange(ewe_id) %>% 
+#         # who didn't have offspring next year
+#         left_join(fitness, by = c("ewe_id" ="id", "year" = "year_mating")) %>% 
+#         filter(!is.na(tup_id)) %>% 
+#         filter(offspring_born == 0) %>% 
+#         slice(1) %>% 
+#         #filter(!is.na(obs)) %>% 
+#         #filter(mounts == -1) %>% 
+#         select(date, tup_id, ewe_id, obs, age) %>%
+#         rename(age_ewe = age) %>% 
+#         mutate(failed = 1)
 
 
 # first approach: take females which mated a second time after two week
@@ -74,7 +79,7 @@ pot_failed_matings <- cons %>%
         arrange(year, ewe_id, date) %>% 
         mutate(time_lag = date - lag(date)) %>% 
         # filter ewes where any two consorts are at least 10 days apart
-        filter(any(time_lag >= 7)) %>% 
+        filter(any(time_lag >= 10)) %>% 
         # first mating gets NA, so rather give it 0
         mutate(time_lag = ifelse(is.na(time_lag), 0, time_lag)) %>% 
         # filter matings before the gap (potentially failed pregnancies)
@@ -83,12 +88,14 @@ pot_failed_matings <- cons %>%
         # 
         # filter all which were mated/seen mated by only only one tup in previous estrous
         # remove unknown tups
-        filter(!is.na(tup_id)) %>% 
         filter(n_distinct(tup_id) == 1) %>% 
+        filter(!is.na(tup_id)) %>% 
+        left_join(fitness %>% select(id, year_mating, age), by = c("ewe_id" ="id", "year" = "year_mating")) %>% 
         #filter(year > 1990) %>% 
         # mounting observed
-       # filter(mounts == -1) %>% 
-        select(date, tup_id, ewe_id, obs) %>% 
+        #filter(mounts == -1) %>% 
+        select(date, tup_id, ewe_id, obs, age) %>% 
+        rename(age_ewe = age) %>% 
         mutate(failed = 1)
 
 # take consorts where a female only consorted once (though it might be over
@@ -108,10 +115,13 @@ pot_succ_matings <- cons %>%
         # if ewe mated with same tup on multiple days in a year, take only
         # one
         slice(1) %>% 
-        inner_join(fitness, by = c("ewe_id" ="mum_id", "year" = "year_mating")) %>% 
+        left_join(fitness, by = c("ewe_id" ="id", "year" = "year_mating")) %>% 
+        filter(offspring_born == 1) %>% 
         #mutate(preg_time = birth_date - date) %>% 
         # filter where pregnancy time is odd or no birth
         #filter(!is.na(preg_time)) %>% 
+        select(date, tup_id, ewe_id, obs, age) %>% 
+        rename(age_ewe = age) %>% 
         mutate(failed = 0)
 
 # combine        
@@ -141,9 +151,9 @@ carrier_matings <- all_matings %>%
                 gt.x > 0 & gt.y > 0 ~ "c_c",
                 TRUE ~ "aa"
         )) %>% 
-        left_join(fitness, by = c("ewe_id" = "id")) %>% 
+        left_join(fitness, by = c("ewe_id" = "id", "year" = "year_mating")) %>% 
         rename(froh_ewe = froh_all) %>% 
-        left_join(fitness[c("id", "froh_all")], by = c("tup_id" = "id")) %>% 
+        left_join(fitness[c("id", "froh_all", "year_mating")], by = c("tup_id" = "id", "year" = "year_mating")) %>% 
         rename(froh_tup = froh_all)
 
 
@@ -166,23 +176,24 @@ ins_effects <- function(hap, carrier_matings) {
         carrier_matings_sub <- carrier_matings %>% 
                                         filter(region == hap) %>% 
                                         mutate(froh_ewe = as.numeric(scale(froh_ewe)),
-                                               froh_tup = as.numeric(scale(froh_tup))) #%>% 
-                                        # group_by(ewe_id) %>% 
-                                        # slice(1)
+                                               froh_tup = as.numeric(scale(froh_tup))) %>% 
+                                        group_by(year, ewe_id) %>%
+                                        slice(1) %>%
+                                        ungroup()
         
         # ewes <- sort(table( carrier_matings_sub$ewe_id))
         # keep_ewes <- names(ewes)[ewes < 6]
         # carrier_matings_sub <- carrier_matings_sub %>% filter(ewe_id %in% keep_ewes)
         
-        fit <- glmer(failed ~ mating_type + froh_ewe + (1|year), #+ (1|obs2),
-                     family = binomial, data = carrier_matings_sub)
-                     #control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
+        fit <- glmer(failed ~ mating_type2 + froh_ewe + age_ewe + (1|year) + (1|ewe_id), #+ (1|obs2),
+                     family = binomial, data = carrier_matings_sub,
+                     control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
         fit
 }
 
 all_regions <- map(unique(carrier_matings$region), ins_effects, carrier_matings)
 names(all_regions) <- unique(carrier_matings$region)
-saveRDS(all_regions, file = "output/ins_effects_500.rds")
+#saveRDS(all_regions, file = "output/ins_effects_500.rds")
 
 out <- map(all_regions, tidy, conf.int = TRUE)
 

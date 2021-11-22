@@ -1,0 +1,58 @@
+      
+      // set up a simple neutral simulation
+      initialize() {
+      	initializeSLiMOptions(keepPedigrees=T);
+      	initializeTreeSeq();
+      	initializeMutationRate(7e-09);
+      	
+      	// mutation types and genomic elelement type
+             initializeMutationType("m1", 0.2, "g", -0.03, 0.2);
+ initializeMutationType("m2", 0, "n", -1, 0.05);
+ initializeGenomicElementType("g1", c(m1, m2), c(1.0, 0.05));
+      	
+      	// uniform chromosome of length 100 Mb with uniform recombination
+      	initializeGenomicElement(g1, 0, 99999999);
+      	initializeRecombinationRate(1e-08);
+      }
+           
+      
+      // create a population of pop_size individuals
+      1 {
+      	defineConstant("simID", getSeed());
+      	sim.addSubpop("p1", 1000);
+      }
+      
+      10000 { p1.setSubpopulationSize(200); }
+      
+      // for a bottleneck remove // below
+      10969 { p1.setSubpopulationSize(10); }
+      10970:10990 {
+            newSize = asInteger(round(1.1534^(sim.generation - 10969) * 10));
+            p1.setSubpopulationSize(newSize);
+      }
+      
+      11000 late() {
+      
+      	// tree sequence recording for 
+      	sim.treeSeqOutput("slim_sim/sims/trees/sheep_"+simID+".trees");
+      	
+      	// mutations per genome
+      	genomes = sim.subpopulations.genomes;
+      	out1 = string(length(sim.subpopulations.genomes.mutations));
+      	out1_index = 0;
+      	
+      	for (genome_index in seqAlong(genomes)) {
+      		genome = genomes[genome_index];
+      		pedigree_id = genome.individual.pedigreeID;
+      		muts = genome.mutations;
+      	
+      		for (mut_index in seqAlong(muts)){
+      			out1[out1_index]=paste(c(genome_index, asString(pedigree_id),muts[mut_index].id, muts[mut_index].position, muts[mut_index].selectionCoeff, muts[mut_index].originGeneration));
+      			out1_index = out1_index + 1;
+      		}
+      		header1=paste(c("genome_id", "pedigree_id", "mut_id", "pos", "s", "originG"));
+      		writeFile("slim_sim/sims/muts/mutperind_"+simID+".txt", paste(c(header1, out1), sep="\n"));
+      	}
+      	
+      }
+      

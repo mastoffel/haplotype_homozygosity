@@ -14,8 +14,8 @@ read_chrs <- function(file_path) {
                 as_tibble() %>% 
                 filter(obs < exp) %>% 
                 # remove hap and give it simple id
-                mutate(hap = 1:nrow(.)) %>% 
-                filter(p_val < 0.05) 
+                mutate(hap = 1:nrow(.)) #%>% 
+                #filter(p_val < 0.05) 
         res
 }
 
@@ -96,18 +96,17 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         scale_color_manual(values = c("#ECEFF4","#d8dee9")) + # #dbe1eb #d1d8e5  "#ECEFF4" #d8dee9
         geom_point(data = gwas_plot %>% filter(highlight %in% c(1)) %>%
                            filter(p_val < 0.05/(eff_tests)),
-                   size = 2.5, shape = 21, stroke = 0.1, fill = "#94350b", color = "black") +
+                   size = 2.5, shape = 21, stroke = 0.1, fill = "#ccbe9b", color = "black") + # "#94350b"
         geom_point(data = gwas_plot %>% filter(highlight %in% c(2)) %>%
                            filter(p_val < 0.05/(eff_tests)),
-                   size = 2.5, shape = 21, stroke = 0.1, fill = "#ccbe9b", color = "black") + 
+                   size = 2.5, shape = 21, stroke = 0.1, fill = "#ccbe9b", color = "black") +  # "#ccbe9b"
         theme_simple(axis_lines = TRUE, grid_lines = FALSE) +
         theme(axis.text = element_text(color = "black"), # axis.text.x size 8
               axis.ticks = element_line(size = 0.1)) +
         guides(fill=FALSE, color = FALSE)# +
 # ggtitle("Haplotype length: 500 SNPs")
-
 p_gwas
-
+ggsave("figs/manhattan_500.jpg", p_gwas, width = 8, height = 2)
 # p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
 #         geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
 #         geom_point(data = gwas_plot %>% filter(-log10(p_val) <= -log10(0.05/(eff_tests))),
@@ -145,7 +144,7 @@ p_freq <- haps_all %>%
         group_by(birth_year, region) %>% 
         summarise(freq = sum(gt) / (n()*2)) %>% 
         ungroup() %>% 
-        mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
+        #mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
         ggplot(aes(birth_year, freq, group = 1, color = highlight)) +
         geom_line(size = 1.2) +
         #geom_smooth(method = "lm", se = FALSE) +
