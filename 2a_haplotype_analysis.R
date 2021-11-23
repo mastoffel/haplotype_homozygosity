@@ -7,6 +7,7 @@ library(tidyverse)
 library(glue)
 library(here)
 library(furrr)
+library(data.table)
 
 args_in <- commandArgs(trailingOnly=TRUE)
 hap_length <- as.numeric(args_in[1])

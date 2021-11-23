@@ -1,22 +1,13 @@
 # makes a slim simulation file
-# original params genome_size = 1e8, pop_size1 = 5000, pop_size2 = 200, 
-#  time1 = 10000, time2 = 11000,  mut_rate_del = 1e-9, recomb_rate = 1.27e-8,
-#    mut1_gam_shape = 0.2,
-
-# 10969 {{ p1.setSubpopulationSize(10); }}
-# 10970:10990 {{
-#          newSize = asInteger(round(1.1534^(sim.generation - 10969) * 10));
-#          p1.setSubpopulationSize(newSize);
-#  }}
 library(tidyverse)
 library(glue)
 make_slim <- function(genome_size = NULL, pop_size1 = NULL, pop_size2 = NULL, 
                       time1 = NULL, time2 = NULL,
                       mut_rate_del = NULL, recomb_rate = NULL,
                       mut1_dom_coeff = NULL, mut1_gam_mean = NULL, 
-                      mut1_gam_shape = NULL,
-                      mut2_dom_coeff = NULL, mut2_mean = NULL, 
-                      mut2_sd = NULL, mut2_rel_freq = NULL,
+                      mut1_gam_shape = NULL,  mut1_rel_freq = NULL,
+                      mut2_dom_coeff = NULL, mut2_val = NULL,
+                      mut2_rel_freq = NULL,
                       mut3_dom_coeff = NULL, mut3_gam_mean = NULL, 
                       mut3_gam_shape = NULL, mut3_rel_freq = NULL,
                       out_dir = "slim_sim/sims",
@@ -49,13 +40,12 @@ make_slim <- function(genome_size = NULL, pop_size1 = NULL, pop_size2 = NULL,
         
         # define mutation type 2
         if (!is.null(mut2_dom_coeff)) {
-                if (is.null(mut2_mean) | is.null(mut2_sd) | 
-                    is.null(mut2_rel_freq)) {
-                        stop("define mean, shape and frequency for mutation 2")
+                if (is.null(mut2_val)) {
+                        stop("define mut2_val for mutation 2")
                 }
                 mut2 <- glue('
-                         initializeMutationType("m2", {mut2_dom_coeff}, "n", \\
-                         {mut2_mean}, {mut2_sd});
+                         initializeMutationType("m2", {mut2_dom_coeff}, "f", \\
+                         {mut2_val});
                          ')
         }
         
@@ -72,7 +62,7 @@ make_slim <- function(genome_size = NULL, pop_size1 = NULL, pop_size2 = NULL,
                           {mut1}
                           {mut2}
                           initializeGenomicElementType("g1", c(m1, m2),\\
-                          c(1.0, {mut2_rel_freq}));
+                          c({mut1_rel_freq}, {mut2_rel_freq}));
                          ')
         }
         
@@ -82,7 +72,7 @@ make_slim <- function(genome_size = NULL, pop_size1 = NULL, pop_size2 = NULL,
                           {mut2}
                           {mut3}
                           initializeGenomicElementType("g1", c(m1, m2, m3), \\
-                          c(1.0, {mut2_rel_freq}, {mut3_rel_freq}));
+                          c({mut1_rel_freq}, {mut2_rel_freq}, {mut3_rel_freq}));
                          ')
         }
         
@@ -112,6 +102,18 @@ make_slim <- function(genome_size = NULL, pop_size1 = NULL, pop_size2 = NULL,
       	sim.addSubpop("p1", {pop_size1});
       }}
       
+      // relationship between s and h as h=0.5e(-13s), but s here is neg, so take away the -
+      mutation(m1) {{
+			  mut.setValue("dom", 0.5*exp(13*mut.selectionCoeff));
+			  return T;
+		  }}
+		  fitness(m1) {{
+			  if (homozygous)
+				  return 1.0 + mut.selectionCoeff;
+			  else
+				  return 1.0 + mut.getValue("dom") * mut.selectionCoeff;
+		}}
+		
       {time1} {{ p1.setSubpopulationSize({pop_size2}); }}
       
       // for a bottleneck remove // below

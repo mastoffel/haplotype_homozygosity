@@ -3,12 +3,12 @@
       initialize() {
       	initializeSLiMOptions(keepPedigrees=T);
       	initializeTreeSeq();
-      	initializeMutationRate(7e-09);
+      	initializeMutationRate(1.2e-08);
       	
       	// mutation types and genomic elelement type
-             initializeMutationType("m1", 0.2, "g", -0.03, 0.2);
- initializeMutationType("m2", 0, "n", -1, 0.05);
- initializeGenomicElementType("g1", c(m1, m2), c(1.0, 0.05));
+             initializeMutationType("m1", 0.2, "g", -0.03, 0.5);
+ initializeMutationType("m2", 0, "f", -1);
+ initializeGenomicElementType("g1", c(m1, m2), c(0.95, 0.05));
       	
       	// uniform chromosome of length 100 Mb with uniform recombination
       	initializeGenomicElement(g1, 0, 99999999);
@@ -22,6 +22,18 @@
       	sim.addSubpop("p1", 1000);
       }
       
+      // relationship between s and h as h=0.5e(-13s), but s here is neg, so take away the -
+      mutation(m1) {
+			  mut.setValue("dom", 0.5*exp(13*mut.selectionCoeff));
+			  return T;
+		  }
+		  fitness(m1) {
+			  if (homozygous)
+				  return 1.0 + mut.selectionCoeff;
+			  else
+				  return 1.0 + mut.getValue("dom") * mut.selectionCoeff;
+		}
+		
       10000 { p1.setSubpopulationSize(200); }
       
       // for a bottleneck remove // below
