@@ -153,7 +153,7 @@ paste(c(header1, out1), sep="\\n"));
       ')
         
         write_lines(slim_file, glue("{slim_code_out}/sheep_{seed}.slim"))
-        
+        #write_lines(slim_file, glue("{slim_code_out}/sheep.slim"))
 }
 
 
