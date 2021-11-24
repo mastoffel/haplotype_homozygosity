@@ -15,10 +15,13 @@ make_slim <- function(genome_size = NULL, pop_size1 = NULL, pop_size2 = NULL,
         
         # output directory
         slim_code_out <- paste0(out_dir, "/slim_code")
+        dir.create(slim_code_out, showWarnings = FALSE, recursive = TRUE)
         # output for mutations
         muts_out <- paste0(out_dir, "/muts")
+        dir.create( muts_out, showWarnings = FALSE, recursive = TRUE)
         # output for trees
         trees_out <- paste0(out_dir, "/trees")
+        dir.create(trees_out, showWarnings = FALSE, recursive = TRUE)
         # # output for vcfs
         # vcfs_out <- paste0(out_dir, "/vcfs")
         # dir.create(vcfs_out, recursive = TRUE, showWarnings = TRUE)

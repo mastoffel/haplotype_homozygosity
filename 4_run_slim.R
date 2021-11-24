@@ -3,13 +3,14 @@ library(glue)
 source("make_slim.R")
 library(furrr)
 
+args_in <- commandArgs(trailingOnly=TRUE)
+out_path <- args_in[1]
+
 # U = 2*genome_size*mutation_rate
 set.seed(111)
 seeds <- sample(1:10000, 100, replace = FALSE)
 
 run_slim <- function(seed) {
-        
-        out_path <- "slim_sim/sims"
         
         make_slim(genome_size = 1e2, pop_size1 = 1000, pop_size2 = 200, 
                   time1 = 10000, time2 = 11000,
@@ -20,11 +21,11 @@ run_slim <- function(seed) {
                   mut2_rel_freq = 0.05,
                   mut3_dom_coeff = NULL, mut3_gam_mean = NULL, 
                   mut3_gam_shape = NULL, mut3_rel_freq = NULL,
-                  out_dir = out_path,
+                  out_dir = glue("{out_path}/slim_sim/sims"),
                   seed = seed)
         
-        system(glue("slim -time -seed {seed} {out_path}/slim_code/sheep_{seed}.slim"))
+        system(glue("slim -time -seed {seed} {out_path}/slim_sim/sims/slim_code/sheep_{seed}.slim"))
 }
 
 plan(multisession, workers = 2)
-walk(seeds, run_slim)
+walk(seeds[1:4], run_slim)
