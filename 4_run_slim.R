@@ -1,4 +1,4 @@
-library(tidyverse)
+#library(tidyverse)
 library(glue)
 source("make_slim.R")
 library(furrr)
@@ -28,4 +28,4 @@ run_slim <- function(seed) {
 }
 
 plan(multisession, workers = 2)
-walk(seeds[1:4], run_slim)
+future_walk(seeds[1:4], run_slim)
