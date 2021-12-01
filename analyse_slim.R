@@ -4,22 +4,22 @@ library(ggdist)
 library(ggrepel)
 
 # 100 simulation runs 
-files <- list.files("slim_sim/sims/muts/", full.names = TRUE)
+files <- list.files("slim_sim/sims/muts_1000_50/", full.names = TRUE)
 full <- map_dfr(files, read_delim, .id = "run")
-
+n_sample <- 50
 mut_classes <- full %>% 
         #group_by(run) %>% 
         #sample_frac(0.1) %>% 
         group_by(run, mut_id, pos, s, originG) %>% 
         tally() %>% 
-        mutate(freq = n/400) %>% 
+        mutate(freq = n/(n_sample*2)) %>% 
         ungroup() %>% 
         mutate(s_class = cut(s, breaks = c(0, -0.01, -0.05, -0.1, -0.2, -0.3, -0.4, -1.1))) %>% 
         #filter(!(s_class %in% c("(-0.8,-0.7]", "(-0.7,-0.6]", "(-0.6,-0.5]"))) %>% 
         mutate(s_class = fct_rev(s_class)) %>% 
         group_by(run, s_class) %>% 
         summarise(mf = mean(freq), lf = quantile(freq, 0.01), 
-                  hf = quantile(freq, 0.9), 
+                  hf = quantile(freq, 0.95), 
                   hf2 = quantile(freq, 0.99),
                                  n = n()) %>% 
         group_by(s_class) %>% 
@@ -27,9 +27,9 @@ mut_classes <- full %>%
         mutate(n = round(n, 0)) 
         
 
-pd <- position_dodge(0.1)
+#pd <- position_dodge(0.1)
 
-mut_classes %>% 
+p <- mut_classes %>% 
         ggplot(aes(x = mf, y = s_class, size = n)) + 
         geom_point() +
        # geom_point(aes(x = hf, y = s_class), 
@@ -41,10 +41,11 @@ mut_classes %>%
                    nudge_x = 0.1, nudge_y = 0.4, 
                     size = 3) +
         scale_x_continuous(breaks = seq(0, 1, 0.1)) +
-        xlab("Mutation frequency (Mean, 90th, 99th percentile)") +
+        xlab("Mutation frequency (Mean, 95th, 99th percentile)") +
         theme(legend.position = "none")
         #xlim(c(0, 0.5))
-        
+p
+ggsave(filename = "figs/mut_dist_ne1000_50.jpg",p, width = 5, height = 4)
         
 
 
