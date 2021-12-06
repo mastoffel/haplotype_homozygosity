@@ -4,9 +4,9 @@ library(ggdist)
 library(ggrepel)
 
 # 100 simulation runs 
-files <- list.files("slim_sim/sims/muts_1000_50/", full.names = TRUE)
+files <- list.files("slim_sim/sims/muts_shape05_scale01/", full.names = TRUE)
 full <- map_dfr(files, read_delim, .id = "run")
-n_sample <- 50
+n_sample <- 200
 mut_classes <- full %>% 
         #group_by(run) %>% 
         #sample_frac(0.1) %>% 
@@ -14,7 +14,7 @@ mut_classes <- full %>%
         tally() %>% 
         mutate(freq = n/(n_sample*2)) %>% 
         ungroup() %>% 
-        mutate(s_class = cut(s, breaks = c(0, -0.01, -0.05, -0.1, -0.2, -0.3, -0.4, -1.1))) %>% 
+        mutate(s_class = cut(s, breaks = c(0, -0.01, -0.05, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -1.0001))) %>% 
         #filter(!(s_class %in% c("(-0.8,-0.7]", "(-0.7,-0.6]", "(-0.6,-0.5]"))) %>% 
         mutate(s_class = fct_rev(s_class)) %>% 
         group_by(run, s_class) %>% 
@@ -26,8 +26,51 @@ mut_classes <- full %>%
         summarise(mf = mean(mf), hf = mean(hf), hf2 = mean(hf2), lf = mean(lf), n = mean(n)) %>%  
         mutate(n = round(n, 0)) 
         
+p1 <- full %>% 
+        filter(run == 1) %>% 
+        ggplot(aes(x = s)) +
+        geom_histogram(aes(y = stat(count) / sum(count))) +
+        scale_y_sqrt(name = "Frequency", labels = scales::percent) +
+        theme_simple()
 
-#pd <- position_dodge(0.1)
+n = 10000
+#mean(rgamma(10000, 0.5,  16.5))
+gamma <- data.frame(s = c(-rgamma(10000, shape = 0.5, scale = 0.1), rep( -1,n*0.01)))
+mean(rgamma(1000000, shape = 0.5, scale = 0.1))
+p2 <- ggplot(gamma, aes(x = s)) +
+        geom_histogram(aes(y = stat(count) / sum(count))) +
+        scale_y_sqrt(name = "Frequency", labels = scales::percent) +
+        theme_simple()
+
+df <- full %>% 
+        filter(run == 1) %>% 
+        bind_rows(gamma, .id = "type") 
+
+# ggplot(df, aes(x = s, fill = type)) +
+#         geom_histogram(aes(y = stat(count) / sum(count)), position="identity", alpha = 0.1, bins = 60, color = "black") +
+#         scale_y_sqrt(name = "% deleterious mutations", labels = c(1, 5, seq(0, 100, 10)), # scales::percent
+#                      breaks = c(0.01, 0.05, seq(0, 1, 0.1))) +
+#         scale_fill_manual(values = c("#D8DEE9", "#4C566A")) +
+#         theme_simple(grid_lines = FALSE)
+
+p <- ggplot(df %>% filter(type == 2), aes(x=s, color = type)) +
+        geom_histogram( aes(x = s, y =  stat(count) / sum(count)), fill="#4C566A", 
+                        bins = 30, size = 0.1, color = "black") +
+        geom_histogram(data = df %>% filter(type == 1), 
+                       aes(x = s, y = -stat(count) / sum(count)), fill="#D8DEE9", 
+                       bins = 30, color = "black", size = 0.1) +
+        theme_simple(grid_lines = FALSE) +
+        scale_y_continuous(name = "% deleterious mutations", breaks = seq(-0.6, 0.6, 0.2), 
+                           labels = c(seq(60, 10, -20), seq(0, 60, 20))) +
+        xlab("selection coefficient") +
+        theme(panel.grid.major.y = element_line( size=.1, color="#D8DEE9")) +
+        annotate("text", label = "New mutations", x = -0.5, y = 0.3) +
+        annotate("text", label = "Simulated Soay sheep", x = -0.5, y = -0.3) 
+        #scale_fill_manual(name="Bar",values=c("#4C566A", "#D8DEE9")) +
+        
+        
+ggsave("figs/dfe_vs_sim_hist.jpg",p, width = 4, height = 3.5)
+ #pd <- position_dodge(0.1)
 
 p <- mut_classes %>% 
         ggplot(aes(x = mf, y = s_class, size = n)) + 
@@ -45,9 +88,8 @@ p <- mut_classes %>%
         theme(legend.position = "none")
         #xlim(c(0, 0.5))
 p
-ggsave(filename = "figs/mut_dist_ne1000_50.jpg",p, width = 5, height = 4)
+ggsave(filename = "figs/s_freq.jpg",p, width = 5, height = 4)
         
-
 
 p <- ggplot(mut_classes, aes(x = freq, y=s_class)) +
         stat_interval(
