@@ -19,11 +19,11 @@ mut_classes <- full %>%
         mutate(s_class = fct_rev(s_class)) %>% 
         group_by(run, s_class) %>% 
         summarise(mf = mean(freq), lf = quantile(freq, 0.01), 
-                  hf = quantile(freq, 0.95), 
+                  hf = quantile(freq, 0.90), 
                   hf2 = quantile(freq, 0.99),
                                  n = n()) %>% 
         group_by(s_class) %>% 
-        summarise(mf = mean(mf), hf = mean(hf), hf2 = mean(hf2), lf = mean(lf), n = mean(n)) %>%  
+        summarise(mf = median(mf), hf = median(hf), hf2 = median(hf2), lf = median(lf), n = median(n)) %>%  
         mutate(n = round(n, 0)) 
         
 p1 <- full %>% 
@@ -34,8 +34,9 @@ p1 <- full %>%
         theme_simple()
 
 n = 10000
+#n = (10000 * 0.95)
 #mean(rgamma(10000, 0.5,  16.5))
-gamma <- data.frame(s = c(-rgamma(10000, shape = 0.5, scale = 0.1), rep( -1,n*0.01)))
+gamma <- data.frame(s = c(-rgamma(n*0.95, shape = 0.5, scale = 0.1), rep( -1,n*0.05)))
 mean(rgamma(1000000, shape = 0.5, scale = 0.1))
 p2 <- ggplot(gamma, aes(x = s)) +
         geom_histogram(aes(y = stat(count) / sum(count))) +
@@ -55,40 +56,46 @@ df <- full %>%
 
 p <- ggplot(df %>% filter(type == 2), aes(x=s, color = type)) +
         geom_histogram( aes(x = s, y =  stat(count) / sum(count)), fill="#4C566A", 
-                        bins = 30, size = 0.1, color = "black") +
+                        bins = 50, size = 0.1, color = "black") +
         geom_histogram(data = df %>% filter(type == 1), 
                        aes(x = s, y = -stat(count) / sum(count)), fill="#D8DEE9", 
-                       bins = 30, color = "black", size = 0.1) +
+                       bins = 50, color = "black", size = 0.1) +
         theme_simple(grid_lines = FALSE) +
         scale_y_continuous(name = "% deleterious mutations", breaks = seq(-0.6, 0.6, 0.2), 
                            labels = c(seq(60, 10, -20), seq(0, 60, 20))) +
         xlab("selection coefficient") +
         theme(panel.grid.major.y = element_line( size=.1, color="#D8DEE9")) +
         annotate("text", label = "New mutations", x = -0.5, y = 0.3) +
-        annotate("text", label = "Simulated Soay sheep", x = -0.5, y = -0.3) 
+        annotate("text", label = "Simulated Soay sheep", x = -0.5, y = -0.3) +
+        scale_x_continuous(breaks = c(0, -0.2, -0.4, -0.6, -0.8, -1.0))
+       # coord_flip() 
         #scale_fill_manual(name="Bar",values=c("#4C566A", "#D8DEE9")) +
         
         
-ggsave("figs/dfe_vs_sim_hist.jpg",p, width = 4, height = 3.5)
+ggsave("figs/dfe_vs_sim_hist.jpg",p, width = 3.5, height = 3.2)
  #pd <- position_dodge(0.1)
 
 p <- mut_classes %>% 
         ggplot(aes(x = mf, y = s_class, size = n)) + 
-        geom_point() +
+      
        # geom_point(aes(x = hf, y = s_class), 
         #           size = 2, shape = "|", stroke = 1) +
-        geom_linerange(aes(xmin = mf, xmax = hf), size = 1.5) +
-        geom_linerange(aes(xmin = mf, xmax = hf2), size = 0.5) +
+        geom_linerange(aes(xmin = mf, xmax = hf2), size = 0.5, color = "#88C0D0") +
+        geom_linerange(aes(xmin = mf, xmax = hf), size = 1.5, color = "#81A1C1") +
+        geom_point(color = "#5E81AC") +
         theme_simple(grid_lines = FALSE) +
         geom_label(label = mut_classes$n,
-                   nudge_x = 0.1, nudge_y = 0.4, 
-                    size = 3) +
+                   nudge_x = 0.05, nudge_y = 0.4, 
+                    size = 3,
+                    color = "#5E81AC") +
         scale_x_continuous(breaks = seq(0, 1, 0.1)) +
-        xlab("Mutation frequency (Mean, 95th, 99th percentile)") +
-        theme(legend.position = "none")
+        scale_y_discrete(labels = c("-0.01", "-0.05", seq(-0.1, -0.6, -0.1), "-1")) +
+        xlab("Mutation frequency (mean, 90th, 99th percentile)") +
+        theme(legend.position = "none") +
+        ylab("Selection coefficient")
         #xlim(c(0, 0.5))
 p
-ggsave(filename = "figs/s_freq.jpg",p, width = 5, height = 4)
+ggsave(filename = "figs/s_freq.jpg",p, width = 5, height = 5)
         
 
 p <- ggplot(mut_classes, aes(x = freq, y=s_class)) +
@@ -135,26 +142,6 @@ stat_dots(position = "dodge", orientation = "horizontal",
         )
 
 
-
-
-mut_classes %>% 
-        group_by(run, s_class) %>% 
-        summarise(mean_freq = mean(freq), min_freq = min(freq), max_freq=max(freq),
-                  mean_G = mean(originG), mean_s = mean(s)) %>% 
-        rowwise() %>% 
-        mutate(max_class = str_split_fixed(s_class, ",", 2)[1],
-               max_class = as.numeric(str_remove(max_class, "\\("))) %>% 
-        mutate(max_class = ifelse(max_class == -1.1, -1, max_class))
-
-mut_classes2 <- mut_classes %>% 
-        group_by(s_class) %>% 
-        summarise(mean_freq = mean(mean_freq), min_freq = mean(min_freq),max_freq = mean(max_freq))
-
-ggplot(mut_classes2, aes(s_class, mean_freq)) +
-        geom_pointrange(aes(ymin = min_freq, ymax = max_freq), size = 0.3) + 
-        scale_y_log10()
-
-
 # expected
 s = 0.3
 freq = 0.2
@@ -182,7 +169,7 @@ get_p <- function(freq, s, n = 5952) {
 
 get_p(freq = 0.25, -0.5)
 
-pars <- expand_grid(freq = seq(0.01, 1, 0.01), s = c(0, -0.0001, -0.001, -0.01, c(seq(-0.1, -1, by = -0.1))))
+pars <- expand_grid(freq = seq(0.01, 1, 0.01), s = c(0, -0.01, -0.05, c(seq(-0.1, -1, by = -0.1))))
 
 pars$p <- map2(pars$freq,pars$s, get_p) %>% 
         unlist()
@@ -195,8 +182,33 @@ pars_thres <- pars %>%
 pars_thres[8, 2] <- -0.3
 
 df <- mut_classes %>% 
-        rename(mut_freq = freq) %>% 
-        left_join(pars_thres, by = c("max_class" = "s"))
+        mutate(s_class = str_extract(s_class, "(?<=^.{1})([^,])+"),
+               s = as.numeric(s_class)) %>% 
+        left_join(pars_thres)
+
+df %>% 
+        ggplot(aes(x = mf, y = s_class, size = n)) + 
+        geom_linerange(aes(xmin = mf, xmax = hf2), size = 0.5, color = "#88C0D0") +
+        geom_linerange(aes(xmin = mf, xmax = hf), size = 1.5, color = "#81A1C1") +
+        geom_point(color = "#5E81AC") +
+        theme_simple(grid_lines = FALSE) +
+        geom_label(label = mut_classes$n,
+                   nudge_x = 0.05, nudge_y = 0.4, 
+                   size = 3,
+                   color = "#5E81AC") +
+        scale_x_continuous(breaks = seq(0, 1, 0.1)) +
+        scale_y_discrete(labels = c("-0.01", "-0.05", seq(-0.1, -0.6, -0.1), "-1")) +
+        xlab("Mutation frequency (mean, 90th, 99th percentile)") +
+        theme(legend.position = "none") +
+        ylab("Selection coefficient") +
+        geom_point(aes(x = freq, y = s_class), 
+                   size = 0.8, color = "#4C566A") +
+        geom_line(aes(x = freq, y = s_class, group = 1), size = 0.3, color = "#4C566A")
+
+
+
+
+
 df_sum <- df %>% 
                 group_by(s_class) %>% 
                 summarise(threshold = mean(freq))
