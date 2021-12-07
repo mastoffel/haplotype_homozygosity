@@ -186,7 +186,7 @@ df <- mut_classes %>%
                s = as.numeric(s_class)) %>% 
         left_join(pars_thres)
 
-df %>% 
+p <- df %>% 
         ggplot(aes(x = mf, y = s_class, size = n)) + 
         geom_linerange(aes(xmin = mf, xmax = hf2), size = 0.5, color = "#88C0D0") +
         geom_linerange(aes(xmin = mf, xmax = hf), size = 1.5, color = "#81A1C1") +
@@ -200,13 +200,12 @@ df %>%
         scale_y_discrete(labels = c("-0.01", "-0.05", seq(-0.1, -0.6, -0.1), "-1")) +
         xlab("Mutation frequency (mean, 90th, 99th percentile)") +
         theme(legend.position = "none") +
-        ylab("Selection coefficient") +
-        geom_point(aes(x = freq, y = s_class), 
-                   size = 0.8, color = "#4C566A") +
-        geom_line(aes(x = freq, y = s_class, group = 1), size = 0.3, color = "#4C566A")
+        ylab("Selection coefficient") #+
+        #geom_point(aes(x = freq, y = s_class), 
+        #           size = 0.8, color = "#4C566A") +
+        #geom_line(aes(x = freq, y = s_class, group = 1), size = 0.3, color = "#4C566A")
 
-
-
+ggsave(filename = "figs/s_freq_nothresh.jpg",p, width = 6, height = 5)
 
 
 df_sum <- df %>% 

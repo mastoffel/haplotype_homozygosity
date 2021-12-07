@@ -28,6 +28,8 @@ res_full %>%
         filter(obs == 0 & exp > 9) %>% 
         print(n = 30)
 
+
+
 # snp map
 snp_map <- fread(here("data", "plink", "sheep.bim")) %>% 
         setNames(c("chr", "snp", "cM", "pos", "a", "b")) %>% 
@@ -145,8 +147,8 @@ p_freq <- haps_all %>%
         summarise(freq = sum(gt) / (n()*2)) %>% 
         ungroup() %>% 
         #mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
-        ggplot(aes(birth_year, freq, group = 1, color = highlight)) +
-        geom_line(size = 1.2) +
+        ggplot(aes(birth_year, freq, group = 1)) +
+        geom_line(size = 1.2, color = "#ccbe9b") +
         #geom_smooth(method = "lm", se = FALSE) +
         facet_wrap(~region, ncol = 4) + 
         theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
@@ -156,7 +158,8 @@ p_freq <- haps_all %>%
         theme(axis.line.y = element_blank(),
               axis.ticks.y = element_blank(),
               legend.position = "none") 
-
+p_freq
+ggsave("figs/hap_freq.jpg", p_freq, width = 7, height = 2)
 # early failed pregnancies
 failed_preg <- readRDS("output/ins_effects_500.rds")
 marg_effs <- map(failed_preg, ggpredict, terms = c("mating_type")) 
