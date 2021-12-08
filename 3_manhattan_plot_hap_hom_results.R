@@ -157,7 +157,8 @@ p_freq <- haps_all %>%
         xlab("Birth year") +
         theme(axis.line.y = element_blank(),
               axis.ticks.y = element_blank(),
-              legend.position = "none") 
+              legend.position = "none",
+              panel.spacing = unit(1, "lines")) 
 p_freq
 ggsave("figs/hap_freq.jpg", p_freq, width = 7, height = 2)
 # early failed pregnancies
@@ -167,6 +168,7 @@ plot_model(failed_preg[[4]], type = "pred", terms = c("mating_type"))
 marg_df <- marg_effs %>% 
                 map(as_tibble) %>% 
                 bind_rows(.id = "region")
+
 p_failed <- marg_df %>% 
         mutate(region = factor(region),
                region = fct_relevel(region, "chr18_267", after = 3)) %>% 
@@ -204,3 +206,43 @@ p_final <- p_gwas / p_freq / p_failed   +
         plot_layout(heights = c(1.6, 1, 1)) +
         plot_annotation(tag_levels = "A")
 ggsave("figs/haplotype_fig1.jpg", width = 7, height = 6)
+
+
+# survival plots
+surv_mods <- readRDS("output/firstyear_surv_mods_hap500.rds")
+map(surv_mods, tidy, conf.int = TRUE)
+#marg_effs <- map(surv_mods, ggpredict, terms = c("gt")) 
+marg_effs <- map(surv_mods, ggemmeans, terms = c("gt")) 
+marg_df <- marg_effs %>% 
+  map(as_tibble) %>% 
+  bind_rows(.id = "region")
+
+p_surv <- marg_df %>% 
+  mutate(region = factor(region),
+         region = fct_relevel(region, "chr18_267", after = 3)) %>% 
+  #mutate(mating_type = fct_recode(x, nn = "nonc_nonc", `cn|nc` = "c_nonc",
+  #                                cc = "c_c")) %>% 
+  mutate(highlight = factor(ifelse(region == "chr9_6571", 1, 0))) %>% 
+  #group_by(region) %>% 
+  ggplot(aes(x, predicted, color = highlight)) +
+  
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, size = 0.5)+
+  geom_point(size = 2.5) +
+  #geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~region, ncol = 4) +
+  theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
+  ylab("Survival\nprobability") +
+  xlab("Genotype (0=hom, 1=het, 2=hom)") +
+  #scale_alpha_manual(values = c(0.5, 1)) +
+  scale_color_manual(values = c("#ccbe9b", "#94350b")) +
+  theme(axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "none",
+        panel.spacing = unit(1.5, "lines")) 
+
+p_final <- p_gwas / p_freq / p_surv   +
+  plot_layout(heights = c(1.6, 1, 1)) +
+  plot_annotation(tag_levels = "A")
+
+#plot_model(surv_mods[[1]], type = "pred", terms = "gt")
+ggsave("figs/haplotype_fig1_nolabs.jpg", width = 7, height = 6)

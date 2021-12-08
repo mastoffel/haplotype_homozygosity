@@ -211,7 +211,7 @@ survival_mod <- function(location, haps_all) {
            mum_age_std = as.numeric(scale(mum_age)),
            mum_age_std2 = mum_age_std^2)
          #  gt_alt = ifelse(gt == 0 | gt ==1, 0, 1))
-  fit <- glmer(survival ~ gt + sex + froh_std + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+  fit <- glmer(survival ~ gt + sex + froh_std + twin + weight_std + mum_age_std + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
                data = dat, family = binomial(link = "logit"),
                control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
   # fit %>% 
@@ -224,8 +224,9 @@ survival <- map(locations, survival_mod, haps_all)
 map(survival, tidy, conf.int=TRUE)
 
 binned_residuals(survival[[1]])
-plot_model(survival[[1]], type = "emm", terms = "twin")
+plot_model(survival[[1]], type = "pred", terms = "gt")
 
+names(survival) <- locations
 #survival2_f <- map(locations, survival_mod, haps_all, "F")
 #survival2_m <- map(locations, survival_mod, haps_all, "M")
 saveRDS(survival, file = "output/firstyear_surv_mods_hap500.rds")
@@ -253,6 +254,7 @@ survival_mod <- function(location, haps_all) {
                    age_std = as.numeric(scale(age)),
                    age_std2 = age_std^2,
                    froh_std = scale(froh_all),
+                   weight_std = as.numeric(scale(weight)),
                    lamb = ifelse(age == 0, 1, 0),
                    lamb = as.factor(lamb),
                    life_stage = case_when(
@@ -262,7 +264,7 @@ survival_mod <- function(location, haps_all) {
                      age > 4 ~ "late_life",
                    )) 
   
-  fit <- glmer(survival ~ gt + twin + froh_std + life_stage * sex + (1|sheep_year) + (1|birth_year) + (1|id),
+  fit <- glmer(survival ~ gt + twin + froh_std + life_stage + sex + weight_std + (1|sheep_year) + (1|birth_year) + (1|id),
                data = dat, family = binomial(link = "logit"), 
                control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
   fit
@@ -274,6 +276,7 @@ survival_mod <- function(location, haps_all) {
 locations <- unique(haps_all$region)
 survival <- map(locations, survival_mod, haps_all)
 names(survival) <- locations
+map(survival, tidy, conf.int=TRUE)
 survival
 
 saveRDS(survival, file = "output/lifetimesurv_mods_hap500.rds")
