@@ -53,49 +53,72 @@ df <- full %>%
 #                      breaks = c(0.01, 0.05, seq(0, 1, 0.1))) +
 #         scale_fill_manual(values = c("#D8DEE9", "#4C566A")) +
 #         theme_simple(grid_lines = FALSE)
-
+# h = 0.5e-13s
 p <- ggplot(df %>% filter(type == 2), aes(x=s, color = type)) +
         geom_histogram( aes(x = s, y =  stat(count) / sum(count)), fill="#4C566A", 
-                        bins = 50, size = 0.1, color = "black") +
+                        bins = 20, size = 0.1, color = "black") +
+        geom_function(fun = function(s) 0.5*exp(13 * s), mapping = aes(x=s),
+                      color = "#81A1C1", size = 0.7) +
+        annotate("text", x = -0.15, y = 0.2, label = "h", color = "#81A1C1") +
         geom_histogram(data = df %>% filter(type == 1), 
                        aes(x = s, y = -stat(count) / sum(count)), fill="#D8DEE9", 
-                       bins = 50, color = "black", size = 0.1) +
+                       bins = 20, color = "black", size = 0.1) +
         theme_simple(grid_lines = FALSE) +
-        scale_y_continuous(name = "% deleterious mutations", breaks = seq(-0.6, 0.6, 0.2), 
-                           labels = c(seq(60, 10, -20), seq(0, 60, 20))) +
-        xlab("selection coefficient") +
+        scale_y_continuous(name = "proprtion of loci", breaks = seq(-0.6, 0.6, 0.2), 
+                           labels = c(seq(0.6, 0.1, -0.2), seq(0, 0.6, 0.2))) +
+        xlab("selection coefficient s") +
         theme(panel.grid.major.y = element_line( size=.1, color="#D8DEE9")) +
         annotate("text", label = "New mutations", x = -0.5, y = 0.3) +
-        annotate("text", label = "Simulated Soay sheep", x = -0.5, y = -0.3) +
+        annotate("text", label = "Simulated Soay sheep \n mutations", x = -0.5, y = -0.3) +
         scale_x_continuous(breaks = c(0, -0.2, -0.4, -0.6, -0.8, -1.0))
        # coord_flip() 
         #scale_fill_manual(name="Bar",values=c("#4C566A", "#D8DEE9")) +
+p
         
-        
-ggsave("figs/dfe_vs_sim_hist.jpg",p, width = 3.5, height = 3.2)
+ggsave("figs/dfe_vs_sim_hist.jpg",p, width = 4.5, height = 4)
  #pd <- position_dodge(0.1)
 
+# option 2 plotting
+
+ggplot(df %>% filter(type == 2), aes(x=s, color = type)) +
+  geom_histogram(data = df %>% filter(type == 1), 
+                 aes(x = s, y = stat(count) / sum(count)), fill="#4C566A", 
+                 bins = 50, color = "black", size = 0.1, alpha = 0.5) +
+  geom_histogram( aes(x = s, y =  stat(count) / sum(count)), fill="white",  # #D8DEE9
+                   bins = 50, size = 0.1, color = "black", alpha = 0.5) +
+ 
+  theme_simple(grid_lines = FALSE) +
+  scale_y_continuous(name = "% deleterious mutations", breaks = seq(-0.6, 0.6, 0.2), 
+                     labels = c(seq(60, 10, -20), seq(0, 60, 20))) +
+  xlab("selection coefficient") +
+  theme(panel.grid.major.y = element_line( size=.1, color="#D8DEE9")) +
+  annotate("text", label = "New mutations", x = -0.5, y = 0.3) +
+  annotate("text", label = "Simulated Soay sheep", x = -0.5, y = -0.3) +
+  scale_x_continuous(breaks = c(0, -0.2, -0.4, -0.6, -0.8, -1.0))
+
+
+
 p <- mut_classes %>% 
-        ggplot(aes(x = mf, y = s_class, size = n)) + 
+        ggplot(aes(x = mf, y = s_class)) +  # size = n
       
        # geom_point(aes(x = hf, y = s_class), 
         #           size = 2, shape = "|", stroke = 1) +
         geom_linerange(aes(xmin = mf, xmax = hf2), size = 0.5, color = "#88C0D0") +
-        geom_linerange(aes(xmin = mf, xmax = hf), size = 1.5, color = "#81A1C1") +
-        geom_point(color = "#5E81AC") +
+        geom_linerange(aes(xmin = mf, xmax = hf), size = 1.3, color = "#81A1C1") +
+        geom_point(fill= "#5E81AC", size = 3, shape = 21) +
         theme_simple(grid_lines = FALSE) +
-        geom_label(label = mut_classes$n,
-                   nudge_x = 0.05, nudge_y = 0.4, 
-                    size = 3,
-                    color = "#5E81AC") +
+        #geom_label(label = mut_classes$n,
+        #           nudge_x = 0.05, nudge_y = 0.4, 
+        #            size = 3,
+        #            color = "#5E81AC") +
         scale_x_continuous(breaks = seq(0, 1, 0.1)) +
         scale_y_discrete(labels = c("-0.01", "-0.05", seq(-0.1, -0.6, -0.1), "-1")) +
-        xlab("Mutation frequency (mean, 90th, 99th percentile)") +
+        xlab("Mutation frequency\n(mean, 90th, 99th percentile)") +
         theme(legend.position = "none") +
-        ylab("Selection coefficient")
+        ylab("Selection coefficient s")
         #xlim(c(0, 0.5))
 p
-ggsave(filename = "figs/s_freq.jpg",p, width = 5, height = 5)
+ggsave(filename = "figs/s_freq.jpg",p, width = 4.5, height = 4)
         
 
 p <- ggplot(mut_classes, aes(x = freq, y=s_class)) +
@@ -189,23 +212,23 @@ df <- mut_classes %>%
 p <- df %>% 
         ggplot(aes(x = mf, y = s_class, size = n)) + 
         geom_linerange(aes(xmin = mf, xmax = hf2), size = 0.5, color = "#88C0D0") +
-        geom_linerange(aes(xmin = mf, xmax = hf), size = 1.5, color = "#81A1C1") +
-        geom_point(color = "#5E81AC") +
+        geom_linerange(aes(xmin = mf, xmax = hf), size = 1.3, color = "#81A1C1") +
+        geom_point(fill= "#5E81AC", size = 3, shape = 21) +
         theme_simple(grid_lines = FALSE) +
-        geom_label(label = mut_classes$n,
-                   nudge_x = 0.05, nudge_y = 0.4, 
-                   size = 3,
-                   color = "#5E81AC") +
+        #geom_label(label = mut_classes$n,
+        #           nudge_x = 0.05, nudge_y = 0.4, 
+        #            size = 3,
+        #            color = "#5E81AC") +
         scale_x_continuous(breaks = seq(0, 1, 0.1)) +
         scale_y_discrete(labels = c("-0.01", "-0.05", seq(-0.1, -0.6, -0.1), "-1")) +
-        xlab("Mutation frequency (mean, 90th, 99th percentile)") +
+        xlab("Mutation frequency\n(mean, 90th, 99th percentile)") +
         theme(legend.position = "none") +
-        ylab("Selection coefficient") #+
+        ylab("Selection coefficient s") #+
         #geom_point(aes(x = freq, y = s_class), 
         #           size = 0.8, color = "#4C566A") +
         #geom_line(aes(x = freq, y = s_class, group = 1), size = 0.3, color = "#4C566A")
-
-ggsave(filename = "figs/s_freq_nothresh.jpg",p, width = 6, height = 5)
+p
+ggsave(filename = "figs/s_freq_nothresh.jpg",p, width = 4.5, height = 4)
 
 
 df_sum <- df %>% 

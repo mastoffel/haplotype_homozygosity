@@ -76,8 +76,9 @@ second_oestrus <- cons %>%
         ungroup() %>% 
         filter(time_lag >= 10) %>% 
         group_by(year, ewe_id) %>% 
-        left_join(fitness %>% select(id, year_mating, age), by = c("ewe_id" ="id", "year" = "year_mating")) %>% 
-        select(date, tup_id, ewe_id, obs, age) %>% 
+        left_join(fitness %>% select(id, year_mating, age, offspring_born), by = c("ewe_id" ="id", "year" = "year_mating")) %>% 
+        select(date, tup_id, ewe_id, obs, age, offspring_born) %>% 
+        #filter(offspring_born > 0) %>% 
         rename(age_ewe = age) %>% 
         mutate(failed = 1)
     
@@ -94,7 +95,7 @@ one_oestrus <- cons %>%
         # just take one row of each ewe within a year
         slice(1) %>% 
         left_join(fitness, by = c("ewe_id" ="id", "year" = "year_mating")) %>% 
-        # only take ewes whic had offspring the next year
+        # only take ewes which had offspring the next year
         filter(offspring_born > 0) %>% 
         select(date, tup_id, ewe_id, obs, age) %>% 
         rename(age_ewe = age) %>% 
@@ -134,16 +135,23 @@ all_matings <- all_matings %>%
                 mutate(age_ewe_std = as.numeric(scale(age_ewe)),
                        age_ewe_std2 = age_ewe_std^2)
 
-fit <- glmer(failed ~ froh_ewe + froh_tup + age_ewe_std + age_ewe_std2 + (1|year) + (1|ewe_id), #+ (1|obs2),
+fit <- glmer(failed ~ froh_ewe + froh_tup + age_ewe_std + age_ewe_std2 + (1|year) + (1|ewe_id) + (1|tup_id), #+ (1|obs2),
              family = binomial, data = all_matings,
              control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 
+library(performance)
+check_model(fit)
+binned_residuals(fit)
 tidy(fit, conf.int = TRUE)
-p1 <- plot_model(fit, type = "pred", terms = "froh_ewe [all]", show.data = FALSE) +
-    theme_simple() +
-    xlab(expression(Female~F[ROH])) +
+p1 <- plot_model(fit, type = "pred", terms = "froh_ewe [all]", show.data = TRUE) +
+   # geom_point(alpha = 0.4) +
+    theme_simple(grid_lines = FALSE) +
+    xlab(expression(F[ROH])) +
     ylab("Probability of\nfailed conception") +
+    theme(axis.line.x = element_line(size = 0.5),
+          axis.ticks.y = element_line(size = 0.5)) +
     ggtitle("")
+p1
 ggsave("figs/failed_conception.jpg", width=3.5, height=3)
 
 # inbreeding depression in breeding success?
@@ -156,20 +164,25 @@ abs <- fitness %>%
         # analysis
         filter(!(id %in% second_oestrus))
 
-fit <- glmer(offspring_born ~ froh_all + age + (1|year_mating) + (1|id), #+ (1|obs2),
+fit <- glmer(offspring_born ~ froh_all + age_std + age_std2 + (1|year_mating) + (1|id), #+ (1|obs2),
              family = binomial, data = abs,
              control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 tidy(fit)
 tidy(fit, conf.int = TRUE)
 
-p2 <- plot_model(fit, type = "pred", terms = "froh_all [all]") +
-    theme_simple() +
-    xlab(expression(Female~F[ROH])) +
+p2 <- plot_model(fit, type = "pred", terms = "froh_all [all]", show.data = TRUE) +
+    theme_simple(grid_lines = FALSE) +
+    xlab(expression(F[ROH])) +
+    theme(axis.line.x = element_line(size = 0.5),
+          axis.ticks.y = element_line(size = 0.5)) +
     ylab("Predicted\nannual breeding success") +
     ggtitle("")
+p2
+ggsave("figs/abs.jpg", p2, width=3.5, height=3)
 
 library(patchwork)
 p <- p1 + p2 + plot_annotation(tag_levels = 'A')
+
 ggsave("figs/froh_breeding.jpg", width = 6, height = 2.8)
 
 # another approach: duration from first mating to offspring

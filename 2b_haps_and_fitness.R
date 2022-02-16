@@ -82,6 +82,7 @@ top_haps <- results %>%
         filter(row_number()==1) 
       
 55/99.75
+top_haps
 
 # (1) get haplotypes for all individuals 
 #hap_length <- 100
