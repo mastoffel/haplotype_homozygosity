@@ -19,6 +19,7 @@ load("data/fitness_roh.RData")
 age <- fitness_data %>% 
         select(id, sheep_year, age) %>% 
         rename(mum_age = age)
+
 fitness <- fitness_data %>% 
                 select(id, survival, sheep_year, age, birth_year, sex, mum_id,
                        twin, offspring_born, offspring_survived, weight,
@@ -84,6 +85,12 @@ top_haps <- results %>%
 55/99.75
 top_haps
 
+# on chromosome 9, it's two significant haplotypes at the same location
+# they only differ by one mutation
+hap_seq <- unlist(str_split(top_haps[1, ]$haps, "_"))
+diff_haps <- strsplit(hap_seq[1], "")[[1]] == strsplit(hap_seq[2], "")[[1]]
+strsplit(hap_seq[2], "")[[1]][!diff_haps]
+
 # (1) get haplotypes for all individuals 
 #hap_length <- 100
 #chr <- top_haps$chr[1]
@@ -133,22 +140,36 @@ hap_to_geno <- function(i, top_haps) {
                 mutate(id = as.numeric(id)) %>% 
                 pivot_wider(names_from = hap_pos, values_from = hap)
         
+        # in one position, two haplotypes were significant
         hap_seq <- unlist(str_split(top_hap$haps, "_"))
         # genotype for haplotype
         # in case of multiple significant haplotypes, this assumes that all
         # significant backgrounds contain the target mutation, and are 
         # therefore clustered as one haplotype
-        hap_gts <- haps %>% 
-                rowwise() %>% 
-                mutate(gt = case_when(
-                        (hap_a %in% hap_seq) & (hap_b %in% hap_seq) ~ 2,
-                        (hap_a %in% hap_seq) & !(hap_b %in% hap_seq) ~ 1,
-                        !(hap_a %in% hap_seq) & (hap_b %in% hap_seq) ~ 1,
-                        !(hap_a %in% hap_seq) & !(hap_b %in% hap_seq) ~ 0,
-                        TRUE ~ NA_real_
-                )) %>% 
-                ungroup() %>% 
-                mutate(snp_start = snp_start, chr = chr)
+       
+        hap_gts <- haps  %>% 
+          rowwise() %>% 
+          mutate(gt = case_when(
+            (hap_a %in% hap_seq) & (hap_b %in% hap_seq) ~ 2,
+            (hap_a %in% hap_seq) & !(hap_b %in% hap_seq) ~ 1,
+            !(hap_a %in% hap_seq) & (hap_b %in% hap_seq) ~ 1,
+            !(hap_a %in% hap_seq) & !(hap_b %in% hap_seq) ~ 0,
+            TRUE ~ NA_real_
+          )) %>% 
+          ungroup() %>% 
+          mutate(snp_start = snp_start, chr = chr)
+        
+        # this is specific for the case of length(hap_seq) == 2, i.e. 2
+        # significant haplotypes at the same location
+        if (length(hap_seq) > 1){
+          hap_gts$gt_hap2 <- rowSums(hap_seq[2] == as.matrix(hap_gts[c('hap_a', 'hap_b')]))
+        } else {
+          hap_gts$gt_hap2 <- NA
+        }
+        
+        hap_gts
+        
+   
 }
 
 # get haplotype genotypes for top haplotypes
@@ -183,6 +204,15 @@ haps_all %>%
   ggplot(aes(birth_year, freq, group = 1)) +
     geom_line() +
     facet_wrap(~region, scales = "free_y")
+
+# check the two haps on 9
+haps_all %>% 
+  filter(as.numeric(as.character(birth_year)) > 1990) %>% 
+  filter(chr == 9 & gt_hap2 == 0) %>% 
+  group_by(birth_year) %>% 
+  summarise(freq = sum(gt) / (n()*2)) %>% 
+  ggplot(aes(birth_year, freq, group = 1)) +
+  geom_line()
 
 # run models
 # time saver function for modeling
@@ -239,6 +269,30 @@ extract_eq(survival[[1]])
 
 
 
+# check both haplotypes on chr 9
+dat <- haps_all %>% 
+  filter(region == locations[1],
+         #sex == s,
+         age == 0) %>% 
+  mutate(gt_hap1 = case_when(
+    gt == 1 & gt_hap2 != 1 ~ 1,
+    #gt == 2 & gt_hap2 == 2 ~ 0,
+    gt == 2 & gt_hap2 == 1 ~ 1,
+    gt == 2 & gt_hap2 == 0 ~ 2,
+    TRUE ~ 0
+  )) %>% 
+  select(region, id, gt, gt_hap1, gt_hap2, everything())
+  mutate(gt = as.factor(gt_hap2),
+         froh_std = as.numeric(scale(froh_all)),
+         weight_std = as.numeric(scale(weight)),
+         mum_age_std = as.numeric(scale(mum_age)),
+         mum_age_std2 = mum_age_std^2)
+#  gt_alt = ifelse(gt == 0 | gt ==1, 0, 1))
+fit <- glmer(survival ~ gt + sex + froh_std + twin + weight_std + mum_age_std + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+             data = dat, family = binomial(link = "logit"),
+             control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
+
+tidy(fit, conf.int=TRUE)
 
 
 

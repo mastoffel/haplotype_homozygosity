@@ -1,6 +1,7 @@
 # Main analysis to find embryonic lethals
 # Idea: For a focal haplotype, find triplets where mum and dad are carriers
 # and check whether there are fewer homozygous offspring than expected
+
 library(data.table)
 library(tidyverse)
 #library(collapse)
