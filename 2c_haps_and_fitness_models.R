@@ -75,18 +75,56 @@ binned_residuals(fit, term = "sex")
 
 # get marginal differences on probability scale 
 # posterior estimates for all fixed effects
-post <- as.matrix(posterior_samples(fit)[1:13])
-preds <- (diag(1, nrow = 8, ncol = 8)) %>% 
+post <- as.matrix(posterior_samples(fit)[c(1:10, 12)])
+dim(post)
+preds <- rbind(diag(1, nrow = 8, ncol = 8), rep(0, 8)) %>% 
                 as.matrix() %>% 
                 as_tibble() %>% 
                 setNames(colnames(post)[2:9]) %>% 
         add_column(intercept = 1, .before = 1) %>% 
         # average marginal effect
         mutate(sex = mean(ifelse(mod_df$sex == "F", 0, 1))) %>% 
-        mutate(froh = mean(mod_df$froh_std),
-               twin = mean(mod_df$twin),
-               weight = mean(mod_df$weight_std))
+        # standardised measure have mean of 0, so not necessary to include here
+        mutate(twin = mean(mod_df$twin))
+                #froh = mean(mod_df$froh_std),
+               #weight = mean(mod_df$weight_std))
 
+# get predictions
+out <- map(1:3, function(i) as_tibble( (t(post) * preds[i, ])))
+
+# get marginal effect
+# vals = vector 
+# post = matrix (post. probs)
+get_surv <- function(vals, post){
+        effs <- sweep(post, MARGIN = 2, vals, "*")
+        logodds <- rowSums(effs)
+        # inv logit
+        probs <- plogis(logodds)
+}
+
+diff_probs <- apply(preds, 1, get_surv, post) %>% 
+        as_tibble() %>% 
+        setNames(c("gt91", "gt92", "gt181", "gt182", "gt51", "gt52", 
+                   "gt71", "gt72", "nogt")) %>% 
+        map_df(function(x) (x - .$nogt)*100) %>% 
+        select(-nogt) 
+        
+
+library(tidybayes)
+diff_probs %>% 
+        pivot_longer(everything(), names_to = "predictor", values_to = "estimate") %>% 
+        mutate(hap = str_sub(predictor, end = -2)) %>% 
+        ggplot(aes(x = estimate, y = predictor)) +
+        stat_halfeye() +
+        geom_vline(xintercept = 0, linetype = "dashed") +
+        scale_fill_manual(values = c("gray80", "skyblue")) +
+        facet_wrap(~hap ,scales = "free_y", nrow = 1) +
+        scale_x_continuous(breaks = seq(-30, 30, 10)) +
+        theme(axis.text.y = element_blank()) +
+        theme_simple()
+
+hist(out$gt92 - out$nogt)
+           
 hist(invlogit(rowSums(post[, c(1, 2, 12)])) - invlogit(rowSums(post[, c(1, 12)])))
 
 emm2 <- lsmeans(fit, pairwise ~ gt9)
