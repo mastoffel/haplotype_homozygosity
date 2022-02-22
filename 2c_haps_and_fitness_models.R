@@ -4,21 +4,27 @@ library(lme4)
 library(performance)
 library(sjPlot)
 library(brms)
+#library(modelbased)
 library(here)
+source("theme_simple.R")
+library(broom.mixed)
 
-# 
 haps_fit <- read_delim(here("output", "haps_and_fitness.txt"))
 
 mod_df <- haps_fit %>% 
         filter(#region == location,
                 #sex == s,
                 age == 0) %>% 
+        select(survival, region, gt, sex, froh_all, twin, weight, mum_age, 
+               birth_year, mum_id) %>% 
+        # drop all rows with missing values
+        drop_na() %>% 
         mutate(gt = as.factor(gt),
                froh_std = as.numeric(scale(froh_all)),
                weight_std = as.numeric(scale(weight)),
                mum_age_std = as.numeric(scale(mum_age)),
                mum_age_std2 = mum_age_std^2) %>% 
-        select(survival, region, gt, sex, froh_std, twin, weight_std, mum_age_std,
+        select(survival, region, gt, sex, froh_std, twin, weight_std, mum_age_std, 
                birth_year, mum_id) %>% 
         pivot_wider(names_from = region, values_from = gt) %>% 
         # mutate(gt9 = ifelse(chr9_6571 == 2, 1, 0),
@@ -43,25 +49,89 @@ nlopt <- function(par, fn, lower, upper, control) {
         )
 }
 
-fit_glmer <- glmer(survival ~ gt9 + gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + mum_age_std + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
-             data = dat, family = binomial(link = "logit"),
+fit_glmer <- glmer(survival ~ gt9 + gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+             data = mod_df, family = binomial(link = "logit"),
              control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 tidy(fit_glmer, conf.int = TRUE)
+binned_residuals(fit_glmer)
 
+estimate_contrasts(fit_glmer, transform = "response", contrast = "gt9")
 
-# brms
-fit <- brm(survival ~ gt9 + gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + mum_age_std + (1|birth_year) + (1|mum_id),
-           data = dat, family = bernoulli(), 
-           iter = 10000,
+# brms #  + gt18 + gt5 + gt7 +
+fit <- brm(survival ~ gt9 + gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + (1|birth_year) + (1|mum_id),
+           data = mod_df, family = bernoulli(), 
+           iter = 10000, thin = 1,
            set_prior("normal(0,5)", class = "b"))
 #saveRDS(fit, "output/haps_fitness_mod.RDS")
 fit <- readRDS("output/haps_fitness_mod.RDS")
+
 prior_summary(fit)
 summary(fit)
 plot(fit)
 loo(fit)
 pp_check(fit, nsamples = 100)
+plot_model(fit)
+binned_residuals(fit, term = "sex")
 
+# get marginal differences on probability scale 
+# posterior estimates for all fixed effects
+post <- as.matrix(posterior_samples(fit)[1:13])
+preds <- (diag(1, nrow = 8, ncol = 8)) %>% 
+                as.matrix() %>% 
+                as_tibble() %>% 
+                setNames(colnames(post)[2:9]) %>% 
+        add_column(intercept = 1, .before = 1) %>% 
+        # average marginal effect
+        mutate(sex = mean(ifelse(mod_df$sex == "F", 0, 1))) %>% 
+        mutate(froh = mean(mod_df$froh_std),
+               twin = mean(mod_df$twin),
+               weight = mean(mod_df$weight_std))
+
+hist(invlogit(rowSums(post[, c(1, 2, 12)])) - invlogit(rowSums(post[, c(1, 12)])))
+
+emm2 <- lsmeans(fit, pairwise ~ gt9)
+summary(emm2, type = "response")
+
+emm3 <- lsmeans(fit, ~gt9)
+pairs(regrid(emm3))
+
+estimate_contrasts()
+# design matrix
+mod_mat <- model.matrix(~ gt9 + gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std, data = mod_df)
+
+dat <- standata(fit)
+
+
+library(tidybayes)
+library(stringr)
+post %>% 
+        select(b_gt91:b_gt72) %>% 
+        pivot_longer(everything(), names_to = "predictor", values_to = "estimate") %>% 
+        mutate(hap = str_sub(predictor, end = -2)) %>% 
+        ggplot(aes(x = plogis(estimate), y = predictor, fill = stat(x < 1))) +
+        stat_halfeye() +
+        geom_vline(xintercept = 1, linetype = "dashed") +
+        scale_fill_manual(values = c("gray80", "skyblue")) +
+        facet_grid(hap~. ,scales = "free_y") +
+        scale_x_continuous(limits = c(0, 2)) +
+        theme_simple()
+
+invlogit <- function(x) exp(x)/(1+exp(x))
+summary(fit)
+dim(post)
+post %>% 
+        select(b_gt91:b_gt72) %>% 
+        pivot_longer(everything(), names_to = "predictor", values_to = "estimate") %>% 
+        mutate(hap = str_sub(predictor, end = -2)) %>% 
+        ggplot(aes(x = invlogit(estimate), y = predictor)) +
+        stat_halfeye() +
+        geom_vline(xintercept = 1, linetype = "dashed") +
+        scale_fill_manual(values = c("gray80", "skyblue")) +
+        facet_grid(hap~. ,scales = "free_y") +
+        scale_x_continuous(limits = c(0, 2)) +
+        theme_simple()
+
+marginal_effects(fit, effects = "gt9")
 
 
 # check both haplotypes on chr 9 || not going anywhere here I think
