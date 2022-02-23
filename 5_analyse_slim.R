@@ -32,7 +32,7 @@ p1 <- full %>%
         geom_histogram(aes(y = stat(count) / sum(count))) +
         scale_y_sqrt(name = "Frequency", labels = scales::percent) +
         theme_simple()
-
+p1
 n = 10000
 #n = (10000 * 0.95)
 #mean(rgamma(10000, 0.5,  16.5))
@@ -40,9 +40,9 @@ gamma <- data.frame(s = c(-rgamma(n*0.95, shape = 0.5, scale = 0.1), rep( -1,n*0
 mean(rgamma(1000000, shape = 0.5, scale = 0.1))
 p2 <- ggplot(gamma, aes(x = s)) +
         geom_histogram(aes(y = stat(count) / sum(count))) +
-        scale_y_sqrt(name = "Frequency", labels = scales::percent) +
+        #scale_y_sqrt(name = "Frequency", labels = scales::percent) +
         theme_simple()
-
+p2
 df <- full %>% 
         filter(run == 1) %>% 
         bind_rows(gamma, .id = "type") 

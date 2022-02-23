@@ -92,7 +92,6 @@ preds <- rbind(diag(1, nrow = 8, ncol = 8), rep(0, 8)) %>%
 # get predictions
 out <- map(1:3, function(i) as_tibble( (t(post) * preds[i, ])))
 
-# get marginal effect
 # vals = vector 
 # post = matrix (post. probs)
 get_surv <- function(vals, post){
@@ -107,13 +106,20 @@ diff_probs <- apply(preds, 1, get_surv, post) %>%
         setNames(c("gt91", "gt92", "gt181", "gt182", "gt51", "gt52", 
                    "gt71", "gt72", "nogt")) %>% 
         map_df(function(x) (x - .$nogt)*100) %>% 
-        select(-nogt) 
-        
+        select(-nogt) %>% 
+        pivot_longer(everything(), names_to = "predictor", values_to = "estimate") %>% 
+        mutate(hap = str_sub(predictor, end = -2))
+
+write_delim(diff_probs, here("output", "survival_marginal_effects.txt"))
+
+
+
+
+
+
 
 library(tidybayes)
 diff_probs %>% 
-        pivot_longer(everything(), names_to = "predictor", values_to = "estimate") %>% 
-        mutate(hap = str_sub(predictor, end = -2)) %>% 
         ggplot(aes(x = estimate, y = predictor)) +
         stat_halfeye() +
         geom_vline(xintercept = 0, linetype = "dashed") +

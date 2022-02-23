@@ -28,8 +28,6 @@ res_full %>%
         filter(obs == 0 & exp > 9) %>% 
         print(n = 30)
 
-
-
 # snp map
 snp_map <- fread(here("data", "plink", "sheep.bim")) %>% 
         setNames(c("chr", "snp", "cM", "pos", "a", "b")) %>% 
@@ -52,13 +50,13 @@ chr_info <- read_delim("data/chromosome_info_oar31.txt", "\t") %>%
         mutate(tot=cumsum(Length)-Length + cumsum(rep(35e6, 26))) %>% 
         dplyr::select(chromosome, tot) 
 
-gwas_plot <- res %>% 
+gwas_plot_tmp <- res %>% 
                 rename(chromosome = chr) %>% 
                 left_join(chr_info) %>% 
                 arrange(chromosome, pos) %>%
                 mutate(positive_cum = pos + tot) 
 
-axisdf <- gwas_plot %>% 
+axisdf <- gwas_plot_tmp %>% 
                 group_by(chromosome) %>% 
                 summarise(center = (max(positive_cum) + min(positive_cum)) / 2 )
 
@@ -68,7 +66,8 @@ cols <- c("#336B87", "#2A3132")
 
 #cols <- viridis(2)
 eff_tests <- 39149
-gwas_plot <- gwas_plot %>% 
+gwas_plot <- gwas_plot_tmp %>% 
+               # filter(p_val < 0.01) %>% 
                 group_by(chromosome) %>% 
                 mutate(top_snp = ifelse(p_val == min(p_val), 1, 0)) %>% 
                 group_by(chromosome, top_snp) %>% 
@@ -108,7 +107,7 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         guides(fill=FALSE, color = FALSE)# +
 # ggtitle("Haplotype length: 500 SNPs")
 p_gwas
-ggsave("figs/manhattan_500.jpg", p_gwas, width = 8, height = 2)
+#ggsave("figs/manhattan_500.jpg", p_gwas, width = 8, height = 2)
 # p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
 #         geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
 #         geom_point(data = gwas_plot %>% filter(-log10(p_val) <= -log10(0.05/(eff_tests))),
@@ -136,6 +135,12 @@ ggsave("figs/manhattan_500.jpg", p_gwas, width = 8, height = 2)
 #p_final <- p1 / p2 / p3 / p4 / p5 / p6 / p7
 #ggsave("figs/manhattans_imputed2.jpg", p_final, width = 9, height = 14)
 
+hap_names <- c(
+  "chr5_6193" = "hap05",
+  "chr7_12119" = "hap07",
+  "chr9_6571" = "hap09",
+  "chr18_267" = "hap18"
+)
 
 # haplotype frequency plots
 haps_all <- read_delim("output/haps_all_500.txt")
@@ -150,7 +155,7 @@ p_freq <- haps_all %>%
         ggplot(aes(birth_year, freq, group = 1)) +
         geom_line(size = 1.2, color = "#ccbe9b") +
         #geom_smooth(method = "lm", se = FALSE) +
-        facet_wrap(~region, ncol = 4) + 
+        facet_grid(~region, labeller=labeller(region = hap_names)) + 
         theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
         scale_color_manual(values = c("#ccbe9b", "#94350b")) +
         ylab("Haplotype\nfrequency") +
@@ -158,54 +163,69 @@ p_freq <- haps_all %>%
         theme(axis.line.y = element_blank(),
               axis.ticks.y = element_blank(),
               legend.position = "none",
-              panel.spacing = unit(1, "lines")) 
+              panel.spacing = unit(1, "lines"))
+             # panel.grid.major.y = element_line(size = 0.1, color = "#4C566A")) 
 p_freq
 ggsave("figs/hap_freq.jpg", p_freq, width = 7, height = 2)
-# early failed pregnancies
-failed_preg <- readRDS("output/ins_effects_500.rds")
-marg_effs <- map(failed_preg, ggpredict, terms = c("mating_type")) 
-plot_model(failed_preg[[4]], type = "pred", terms = c("mating_type"))
-marg_df <- marg_effs %>% 
-                map(as_tibble) %>% 
-                bind_rows(.id = "region")
-
-p_failed <- marg_df %>% 
-        mutate(region = factor(region),
-               region = fct_relevel(region, "chr18_267", after = 3)) %>% 
-        mutate(mating_type = fct_recode(x, nn = "nonc_nonc", `cn|nc` = "c_nonc",
-                                        cc = "c_c")) %>% 
-        mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
-        #group_by(region) %>% 
-        ggplot(aes(mating_type, predicted, color = highlight)) +
-      
-        geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, size = 0.5)+
-        geom_point(size = 2.5) +
-        #geom_smooth(method = "lm", se = FALSE) +
-        facet_wrap(~region, ncol = 4) +
-        theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
-        ylab("Probability of\nfailed insemination") +
-        xlab("Mating type") +
-       #scale_alpha_manual(values = c(0.5, 1)) +
-        scale_color_manual(values = c("#ccbe9b", "#94350b")) +
-        theme(axis.line.y = element_blank(),
-              axis.ticks.y = element_blank(),
-              legend.position = "none") 
-        # scale_color_manual(name="Mating type",
-        #                    labels=c("nn (2 non-carriers)",
-        #                             "cn|nc (1 carrier + 1 non-carrier)",
-        #                             "cc (2 carriers"),
-        #                    values=c("black","black","black"))
-        
 
 # survival plots
-# surv_mods <- readRDS("output/surv_mods_hap500.rds")
-# marg_effs <- ggpredict(surv_mods[[4]], terms = c("lamb", "gt"))
-# plot_model(surv_mods[[1]], type = "pred", terms = c("lamb", "gt"))
+surv <- read_delim(here("output", "survival_marginal_effects.txt"))
 
-p_final <- p_gwas / p_freq / p_failed   +
-        plot_layout(heights = c(1.6, 1, 1)) +
+p_surv <- surv %>% 
+  mutate(chr = str_remove(hap, "gt")) %>% 
+  mutate(chr = case_when(
+    chr == "5" ~ "hap05",
+    chr == "7" ~ "hap07",
+    chr == "9" ~ "hap09",
+    chr == "18" ~ "hap18"
+  )) %>% 
+  mutate(chr = factor(chr, levels = c("hap05", "hap07", "hap09", "hap18"))) %>% 
+  mutate(copies = str_sub(predictor, start = -1)) %>% 
+  ggplot(aes(x = estimate, y = copies)) +
+  stat_halfeye(#mapping = aes(fill=stat(
+    #cut_cdf_qi(cdf, .width = c(.66,.95,1)))),
+    interval_color = "#4C566A",
+    point_color = "#4C566A",
+    slab_color = "#4C566A",
+    slab_size = 0.1,
+    slab_fill = "#E5E9F0"
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_fill_manual(values = c("#D8DEE9", "#E5E9F0", "#ECEFF4")) +
+  facet_grid(~chr ,scales = "free_x") +
+  scale_x_continuous(breaks = seq(-30, 30, 10), limits = c(-35, 35), 
+                     labels = c("", "-20%", "", "0%", "", "20%", "")) + #limits = c(-36, 36)
+  ylab("Haplotype\ncopies") +
+  xlab("change in first-year survival probability") +
+  #scale_fill_brewer(direction = -1, na.translate = FALSE) +
+  theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
+  theme(axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "none",
+        panel.spacing = unit(1, "lines")) 
+p_surv
+
+p_final <- p_gwas / p_freq / p_surv   +
+        plot_layout(heights = c(2, 1.3, 1.5)) +
         plot_annotation(tag_levels = "A")
-ggsave("figs/haplotype_fig1.jpg", width = 7, height = 6)
+p_final
+
+ggsave("figs/haplotype_fig1.jpg", width = 8, height = 6)
+
+
+
+res_full %>% 
+  group_by(chr) %>% 
+  filter(p_val == min(p_val)) %>% 
+  filter(snp_num == min(snp_num)) %>% 
+  ungroup() %>% 
+  filter(p_val < 0.05/39149)
+
+
+
+
+
+
 
 
 # survival plots
@@ -243,6 +263,6 @@ p_surv <- marg_df %>%
 p_final <- p_gwas / p_freq / p_surv   +
   plot_layout(heights = c(1.6, 1, 1)) +
   plot_annotation(tag_levels = "A")
-
+p_final
 #plot_model(surv_mods[[1]], type = "pred", terms = "gt")
 ggsave("figs/haplotype_fig1_nolabs.jpg", width = 7, height = 6)
