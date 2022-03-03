@@ -2,7 +2,8 @@ library(tidyverse)
 source("theme_simple.R")
 library(ggdist)
 library(ggrepel)
-
+library(ggridges)
+library(tidybayes)
 # 100 simulation runs 
 files <- list.files("slim_sim/sims/muts_shape05_scale01/", full.names = TRUE)
 full <- map_dfr(files, read_delim, .id = "run")
@@ -14,18 +15,58 @@ mut_classes <- full %>%
         tally() %>% 
         mutate(freq = n/(n_sample*2)) %>% 
         ungroup() %>% 
-        mutate(s_class = cut(s, breaks = c(0, -0.01, -0.05, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -1.0001))) %>% 
+       # mutate(s_class = cut(s, breaks = c(0, -0.01, -0.05, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0001))) %>% 
+        mutate(s_class = cut(s, breaks = c(0, -0.01, -0.1, -0.2, -0.3, -0.4, -0.5, -1.0001))) %>% 
         #filter(!(s_class %in% c("(-0.8,-0.7]", "(-0.7,-0.6]", "(-0.6,-0.5]"))) %>% 
         mutate(s_class = fct_rev(s_class)) %>% 
         group_by(run, s_class) %>% 
-        summarise(mf = mean(freq), lf = quantile(freq, 0.01), 
+        summarise(mf = mean(freq), 
+                  lf = quantile(freq, 0.01), 
                   hf = quantile(freq, 0.90), 
                   hf2 = quantile(freq, 0.99),
                                  n = n()) %>% 
         group_by(s_class) %>% 
         summarise(mf = median(mf), hf = median(hf), hf2 = median(hf2), lf = median(lf), n = median(n)) %>%  
         mutate(n = round(n, 0)) 
-        
+
+mut_classes %>% 
+  ggplot(aes(s, freq)) +
+  geom_bin2d(bins = 30) + 
+  scale_fill_continuous(type = "viridis", trans = "log",
+                        breaks = c(1, 10, 100, 1000, 10000)) +
+  theme_simple() #+ 
+  #facet_wrap(~s_class, scales = "free")
+
+p <- mut_classes %>% 
+  #filter(s_class == "(-0.05,-0.01]") %>% 
+  ggplot(aes(x = freq, y = s_class)) +
+  stat_ccdfinterval() 
+
+ggsave(filename = "figs/s_vs_freq.jpg",p, width = 5.5, height = 4)
+
+p <- mut_classes %>% 
+  ggplot(aes(x = mf, y = s_class)) +  # size = n
+  
+  # geom_point(aes(x = hf, y = s_class), 
+  #           size = 2, shape = "|", stroke = 1) +
+  geom_linerange(aes(xmin = mf, xmax = hf2), size = 0.5, color = "#88C0D0") +
+  geom_linerange(aes(xmin = mf, xmax = hf), size = 1.3, color = "#81A1C1") +
+  geom_point(fill= "#5E81AC", size = 3, shape = 21) +
+  theme_simple(grid_lines = FALSE) +
+  #geom_label(label = mut_classes$n,
+  #           nudge_x = 0.05, nudge_y = 0.4, 
+  #            size = 3,
+  #            color = "#5E81AC") +
+  scale_x_continuous(breaks = seq(0, 1, 0.1)) +
+  scale_y_discrete(labels = c("-0.01", "-0.05", seq(-0.1, -0.6, -0.1), "-1")) +
+  xlab("Mutation frequency\n(mean, 90th, 99th percentile)") +
+  theme(legend.position = "none") +
+  ylab("Selection coefficient s")
+#xlim(c(0, 0.5))
+p
+ggsave(filename = "figs/s_freq.jpg",p, width = 4.5, height = 4)
+
+
 p1 <- full %>% 
         filter(run == 1) %>% 
         ggplot(aes(x = s)) +
@@ -98,28 +139,7 @@ ggplot(df %>% filter(type == 2), aes(x=s, color = type)) +
 
 
 
-p <- mut_classes %>% 
-        ggplot(aes(x = mf, y = s_class)) +  # size = n
-      
-       # geom_point(aes(x = hf, y = s_class), 
-        #           size = 2, shape = "|", stroke = 1) +
-        geom_linerange(aes(xmin = mf, xmax = hf2), size = 0.5, color = "#88C0D0") +
-        geom_linerange(aes(xmin = mf, xmax = hf), size = 1.3, color = "#81A1C1") +
-        geom_point(fill= "#5E81AC", size = 3, shape = 21) +
-        theme_simple(grid_lines = FALSE) +
-        #geom_label(label = mut_classes$n,
-        #           nudge_x = 0.05, nudge_y = 0.4, 
-        #            size = 3,
-        #            color = "#5E81AC") +
-        scale_x_continuous(breaks = seq(0, 1, 0.1)) +
-        scale_y_discrete(labels = c("-0.01", "-0.05", seq(-0.1, -0.6, -0.1), "-1")) +
-        xlab("Mutation frequency\n(mean, 90th, 99th percentile)") +
-        theme(legend.position = "none") +
-        ylab("Selection coefficient s")
-        #xlim(c(0, 0.5))
-p
-ggsave(filename = "figs/s_freq.jpg",p, width = 4.5, height = 4)
-        
+   
 
 p <- ggplot(mut_classes, aes(x = freq, y=s_class)) +
         stat_interval(

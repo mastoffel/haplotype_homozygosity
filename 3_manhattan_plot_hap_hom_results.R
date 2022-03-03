@@ -6,7 +6,8 @@ library(data.table)
 library(GWASTools)
 library(ggeffects)
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_results_imputed", "hap_len_500"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_results_imputed", "hap_len_50"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_results_50K", "hap_len_40"), full.names = TRUE)
 
 read_chrs <- function(file_path) {
         res <- read_delim(file_path, "\t") %>% 
@@ -65,7 +66,7 @@ chr_labels_full <- as.character(1:26)
 cols <- c("#336B87", "#2A3132")
 
 #cols <- viridis(2)
-eff_tests <- 39149
+eff_tests <- 417000 #39149
 gwas_plot <- gwas_plot_tmp %>% 
                # filter(p_val < 0.01) %>% 
                 group_by(chromosome) %>% 

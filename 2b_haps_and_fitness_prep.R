@@ -74,12 +74,17 @@ top_haps <- results %>%
         filter(row_number()==1) 
       
 top_haps
+write_delim(top_haps, here("output", "top_haps_500.txt"))
 
 # on chromosome 9, it's two significant haplotypes at the same location
 # they only differ by one mutation
 hap_seq <- unlist(str_split(top_haps[1, ]$haps, "_"))
 diff_haps <- strsplit(hap_seq[1], "")[[1]] == strsplit(hap_seq[2], "")[[1]]
+which(!diff_haps)
 strsplit(hap_seq[2], "")[[1]][!diff_haps]
+snp_map %>% 
+  filter(chr == 14) %>% 
+  filter(snp_num == (6599+ which(!diff_haps) - 1))
 
 # take top haplotype and get genotypes for hom/het/alt_hom 
 hap_to_geno <- function(i, top_haps) {
@@ -167,7 +172,7 @@ haps_all <- haps %>%
         #mutate(gt = as.factor(gt))
 
 haps_all %>% 
-        write_delim(here("output", "haps_and_fitness.txt"), " ")
+        write_delim(here("output", "haps50_and_fitness.txt"), " ")
 # top haplotype genotypes per individual
 # save
 haps_ind <- haps %>% 
@@ -192,7 +197,7 @@ haps_all %>%
 # check the two haps on 9
 haps_all %>% 
   filter(as.numeric(as.character(birth_year)) > 1990) %>% 
-  filter(chr == 9 & gt_hap2 == 0) %>% 
+  filter(chr == 9 & gt_hap2 == 1) %>% 
   group_by(birth_year) %>% 
   summarise(freq = sum(gt) / (n()*2)) %>% 
   ggplot(aes(birth_year, freq, group = 1)) +

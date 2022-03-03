@@ -19,10 +19,10 @@ ped <- as_tibble(sheep_ped) %>%
         setNames(c("id", "mum", "dad"))
 
 # get individuals with genotypes
-inds <- fread(here("data", "plink", "sheep.fam")) %>% 
-                select(V2) %>% 
-                rename(id = V2) %>% 
-                .$id
+inds <- fread(here("data", "plink", "sheep_50K.fam")) %>% 
+        select(V2) %>% 
+        rename(id = V2) %>% 
+        .$id
 
 # filter ped for individuals with genotypes (id, mum and dad must have genotypes)
 ped <- ped %>% 
@@ -39,23 +39,23 @@ ped <- ped %>%
 run_hap_hom_by_chr <- function(chr) {
         
         # get haplotypes, remove everything but genotypes to make it a matrix
-        haps_raw <- fread(here("output", "phased_matrix", glue("sheep_phased_chr_{chr}.hap.gz"))) %>% 
+        haps_raw <- fread(here("output", "phased_matrix", glue("sheep_phased_50K_chr_{chr}.hap.gz"))) %>% 
                 select(-V1, -V2, -V3, -V4, -V5) %>% 
                 as.matrix()
         
         # get individual names, should be 5952
         # here is a bit clunky here so stay with fixed path
-        ind_names <- system(glue("zgrep '^#CHROM*' output/phased/sheep_phased_chr_{chr}.vcf.gz"),
+        ind_names <- system(glue("zgrep '^#CHROM*' output/phased/sheep_phased_50K_chr_{chr}.vcf.gz"),
                             intern = TRUE) %>% 
-                        str_split("\t") %>%
-                        unlist() %>% 
-                        .[-(1:9)] %>% 
-                        str_split("_") %>% 
-                        map_chr(2)
+                str_split("\t") %>%
+                unlist() %>% 
+                .[-(1:9)] %>% 
+                str_split("_") %>% 
+                map_chr(2)
         
         # double each name and add _a _b for haplotype 1 / haplotype 2
         ind_names_hap <- rep(ind_names, each = 2) %>% 
-                                paste0(., c("_a", "_b"))
+                paste0(., c("_a", "_b"))
         # add to matrix
         colnames(haps_raw) <- ind_names_hap
         
@@ -99,8 +99,8 @@ run_hap_hom_by_chr <- function(chr) {
         test_hap_hom <- function(start_snp, haps_raw, hap_length, calc_hom_def) {
                 
                 # reshape 
-                haps <- apply(haps_raw[start_snp:(start_snp+hap_length-1), ], 
-                               paste, collapse = "", MARGIN = 2) %>% 
+                haps <- apply(haps_raw[start_snp:(start_snp+hap_length), ], 
+                              paste, collapse = "", MARGIN = 2) %>% 
                         enframe(name = "id_hap", value = "hap") %>% 
                         mutate(id = str_remove(id_hap, "_[a-z]")) %>%
                         select(-id_hap) %>% 
@@ -108,11 +108,27 @@ run_hap_hom_by_chr <- function(chr) {
                         mutate(id = as.numeric(id)) %>% 
                         pivot_wider(names_from = hap_pos, values_from = hap)
                 
+                haps <- haps %>% 
+                        mutate(hap_a = str_sub(hap_a,end = -2),
+                               hap_b = str_sub(hap_b, end = -2))
+                
+                hap1 <- str_split(top_haps$haps[1], "_")[[1]][1]
+                hap2 <- str_split(top_haps$haps[1], "_")[[1]][2]
+                sum(haps$hap_a == hap2)
+                
+                haps <- haps %>% 
+                        rowwise() %>% 
+                        mutate(hap_a = ifelse(hap_a == hap2, hap1, hap_a),
+                               hap_b = ifelse(hap_b == hap2, hap1, hap_b)) %>% 
+                        ungroup()
+               
                 # list haplotypes
                 haps_tab <- table(as.matrix(haps[, c("hap_a", "hap_b")]))
                 
+                # merge haps
+                
                 # haplotypes with high frequencies hf > 1%
-                haps_hf <- haps_tab[haps_tab/sum(haps_tab) > 0.001]
+                haps_hf <- haps_tab[haps_tab/sum(haps_tab) > 0.01]
                 names(haps_hf)
                 
                 # get haplotypes matched for parents and offspring
@@ -128,7 +144,7 @@ run_hap_hom_by_chr <- function(chr) {
                 hap_mat <- as.matrix(haps_all[, 4:9])
                 
                 # get transmission probabilities 
-               # hap_one <- names(haps_hf)[1]
+                # hap_one <- names(haps_hf)[1]
                 
                 out <- map_dfr(names(haps_hf), calc_hom_def, hap_mat) %>% 
                         mutate(chr = chr, snp_start = start_snp) 
