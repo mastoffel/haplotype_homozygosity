@@ -112,8 +112,7 @@ run_hap_hom_by_chr <- function(chr) {
                 haps_tab <- table(as.matrix(haps[, c("hap_a", "hap_b")]))
                 
                 # haplotypes with high frequencies hf > 1%
-                haps_hf <- haps_tab[haps_tab/sum(haps_tab) > 0.001]
-                names(haps_hf)
+                haps_hf <- haps_tab[haps_tab/sum(haps_tab) > 0.005]
                 
                 # get haplotypes matched for parents and offspring
                 haps_all <- ped %>% 
@@ -130,10 +129,32 @@ run_hap_hom_by_chr <- function(chr) {
                 # get transmission probabilities 
                # hap_one <- names(haps_hf)[1]
                 
-                out <- map_dfr(names(haps_hf), calc_hom_def, hap_mat) %>% 
+                hap_tests <- map_dfr(names(haps_hf), calc_hom_def, hap_mat) %>% 
                         mutate(chr = chr, snp_start = start_snp) 
                 
-                out
+                # sometimes a genotyping error causes a haplotype to be 
+                # 2 haplotypes, both of which are significant. If this happens
+                # let's combine these haplotypes 
+                
+                # check whether more than one haplotype is fairly significant
+                hap_sub <- hap_tests %>% 
+                        filter(p_val < (0.05/1000))
+                # if so, check whether these are similar
+                if (nrow(hap_sub) == 2){
+                        hap1 <- hap_sub$hap[1]
+                        hap2 <- hap_sub$hap[2]
+                        diff <- str_split(hap1, "")[[1]] == str_split(hap2, "")[[1]]
+                        # if they differ only by 1 
+                        if (sum(!diff) < 2) {
+                                hap_mat[hap_mat==hap2] <- hap1
+                                haps_hf2 <- names(haps_hf)[names(haps_hf) != hap2]
+                                hap_tests <- map_dfr(haps_hf2, calc_hom_def, hap_mat) %>% 
+                                        mutate(chr = chr, snp_start = start_snp) 
+                        }
+                }
+                
+                hap_tests
+                
         }
         
         # number of snps

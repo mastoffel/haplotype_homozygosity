@@ -38,7 +38,7 @@ snp_map <- fread(here("data", "plink", "sheep.bim")) %>%
 
 # target haplotypes:
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_results_imputed", "hap_len_500"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_results_imputed", "hap_len_200"), full.names = TRUE)
 results <- map(all_files, read_delim, delim = "\t") %>%  #read_delim, delim = "\t"
         bind_rows()
 
@@ -74,7 +74,7 @@ top_haps <- results %>%
         filter(row_number()==1) 
       
 top_haps
-write_delim(top_haps, here("output", "top_haps_500.txt"))
+write_delim(top_haps, here("output", "top_haps_200.txt"))
 
 # on chromosome 9, it's two significant haplotypes at the same location
 # they only differ by one mutation
@@ -172,7 +172,7 @@ haps_all <- haps %>%
         #mutate(gt = as.factor(gt))
 
 haps_all %>% 
-        write_delim(here("output", "haps50_and_fitness.txt"), " ")
+        write_delim(here("output", "haps200_and_fitness.txt"), " ")
 # top haplotype genotypes per individual
 # save
 haps_ind <- haps %>% 
