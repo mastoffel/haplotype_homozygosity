@@ -6,8 +6,7 @@ library(data.table)
 library(GWASTools)
 library(ggeffects)
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_results_imputed", "hap_len_50"), full.names = TRUE)
-all_files <- list.files(here("output", "hap_results_50K", "hap_len_40"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_results_imputed", "hap_len_400"), full.names = TRUE)
 
 read_chrs <- function(file_path) {
         res <- read_delim(file_path, "\t") %>% 
@@ -26,7 +25,7 @@ res_full <- map(all_files, read_chrs) %>%
 #qqPlot(res_full$p_val)
 # any potential lethals?
 res_full %>% 
-        filter(obs == 0 & exp > 9) %>% 
+        filter(obs == 0 & exp > 8) %>% 
         print(n = 30)
 
 # snp map
@@ -66,9 +65,9 @@ chr_labels_full <- as.character(1:26)
 cols <- c("#336B87", "#2A3132")
 
 #cols <- viridis(2)
-eff_tests <- 417000 #39149
+eff_tests <- 39149 #39149
 gwas_plot <- gwas_plot_tmp %>% 
-               # filter(p_val < 0.01) %>% 
+                filter(p_val < 0.01) %>% 
                 group_by(chromosome) %>% 
                 mutate(top_snp = ifelse(p_val == min(p_val), 1, 0)) %>% 
                 group_by(chromosome, top_snp) %>% 
@@ -98,10 +97,10 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         scale_color_manual(values = c("#ECEFF4","#d8dee9")) + # #dbe1eb #d1d8e5  "#ECEFF4" #d8dee9
         geom_point(data = gwas_plot %>% filter(highlight %in% c(1)) %>%
                            filter(p_val < 0.05/(eff_tests)),
-                   size = 2.5, shape = 21, stroke = 0.1, fill = "#ccbe9b", color = "black") + # "#94350b"
+                   size = 2.5, shape = 21, stroke = 0.1, fill = "#5E81AC", color = "black") + # "#94350b"
         geom_point(data = gwas_plot %>% filter(highlight %in% c(2)) %>%
                            filter(p_val < 0.05/(eff_tests)),
-                   size = 2.5, shape = 21, stroke = 0.1, fill = "#ccbe9b", color = "black") +  # "#ccbe9b"
+                   size = 2.5, shape = 21, stroke = 0.1, fill = "#5E81AC", color = "black") +  # "#ccbe9b"
         theme_simple(axis_lines = TRUE, grid_lines = FALSE) +
         theme(axis.text = element_text(color = "black"), # axis.text.x size 8
               axis.ticks = element_line(size = 0.1)) +
@@ -131,20 +130,52 @@ p_gwas
 
 #p_gwas
 
+hap_names <- c(
+  "chr5_6293" = "hap05",
+  "chr7_12196" = "hap07",
+  "chr18_267" = "hap18"
+)
 
+# row with barplots?
+top_haps <- read_delim(here("output", "top_haps_400.txt")) %>% 
+              select(region, obs, exp) %>% 
+              mutate(prop_obs = paste0("-", round((1-obs/exp)*100, 0), "%")) %>% 
+              pivot_longer(cols = obs:exp,
+                           names_to = "type",
+                           values_to = "ind_count") %>% 
+              mutate(prop_obs = ifelse(type == "exp", "", paste0("(", prop_obs, ")"))) %>% 
+              mutate(count_label = paste0(round(ind_count,0))) %>% 
+              mutate(region = factor(region, levels = c("chr5_6293", "chr7_12196",
+                                                        "chr18_267")))
+
+p_num <- ggplot(top_haps, aes(type, ind_count, col = type)) +
+  #geom_col(fill = "#ccbe9b") +
+  geom_point(size = 2.5) +
+  geom_segment(aes(x=type, xend=type, y=0, yend=ind_count)) +
+  facet_wrap(~region, labeller=labeller(region = hap_names)) +
+  theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
+ # scale_color_manual(values = c("#ccbe9b", "#94350b")) +
+  #ylab("Haplotype\nfrequency") +
+  ylab("# Homozygous\noffspring") +
+  xlab("Category") +
+  scale_color_manual(values = c("#2E3440","#5E81AC")) +
+  theme(axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "none",
+        panel.spacing = unit(2.5, "lines")) +
+  geom_text(aes(label = count_label), vjust = 0.5, hjust = 1.5,
+            size = 3) +
+  geom_text(aes(label = prop_obs), vjust = 2, hjust = 1.1,
+            size = 3)
+p_num
 # run script a few times ...
 #p_final <- p1 / p2 / p3 / p4 / p5 / p6 / p7
 #ggsave("figs/manhattans_imputed2.jpg", p_final, width = 9, height = 14)
 
-hap_names <- c(
-  "chr5_6193" = "hap05",
-  "chr7_12119" = "hap07",
-  "chr9_6571" = "hap09",
-  "chr18_267" = "hap18"
-)
+
 
 # haplotype frequency plots
-haps_all <- read_delim("output/haps_all_500.txt")
+haps_all <- read_delim(here("output", "haps400_and_fitness.txt"))
 p_freq <- haps_all %>% 
         mutate(region = factor(region),
                region = fct_reorder(region, chr)) %>% 
@@ -154,20 +185,28 @@ p_freq <- haps_all %>%
         ungroup() %>% 
         #mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
         ggplot(aes(birth_year, freq, group = 1)) +
-        geom_line(size = 1.2, color = "#ccbe9b") +
+        geom_line(size = 1.2, color = "#5E81AC") +
         #geom_smooth(method = "lm", se = FALSE) +
         facet_grid(~region, labeller=labeller(region = hap_names)) + 
         theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
-        scale_color_manual(values = c("#ccbe9b", "#94350b")) +
+       # scale_color_manual(values = c( "#5E81AC")) + #5E81AC "#94350b"
         ylab("Haplotype\nfrequency") +
         xlab("Birth year") +
         theme(axis.line.y = element_blank(),
               axis.ticks.y = element_blank(),
               legend.position = "none",
-              panel.spacing = unit(1, "lines"))
+              panel.spacing = unit(2.5, "lines"))
              # panel.grid.major.y = element_line(size = 0.1, color = "#4C566A")) 
 p_freq
 ggsave("figs/hap_freq.jpg", p_freq, width = 7, height = 2)
+
+
+
+
+
+
+
+
 
 # survival plots
 surv <- read_delim(here("output", "survival_marginal_effects.txt"))
@@ -243,7 +282,7 @@ p_surv <- marg_df %>%
          region = fct_relevel(region, "chr18_267", after = 3)) %>% 
   #mutate(mating_type = fct_recode(x, nn = "nonc_nonc", `cn|nc` = "c_nonc",
   #                                cc = "c_c")) %>% 
-  mutate(highlight = factor(ifelse(region == "chr9_6571", 1, 0))) %>% 
+  #mutate(highlight = factor(ifelse(region == "chr9_6571", 1, 0))) %>% 
   #group_by(region) %>% 
   ggplot(aes(x, predicted, color = highlight)) +
   

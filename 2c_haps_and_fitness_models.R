@@ -9,7 +9,7 @@ library(here)
 source("theme_simple.R")
 library(broom.mixed)
 
-haps_fit <- read_delim(here("output", "haps50_and_fitness.txt"))
+haps_fit <- read_delim(here("output", "haps400_and_fitness.txt"))
 
 mod_df <- haps_fit %>% 
         filter(#region == location,
@@ -32,10 +32,9 @@ mod_df <- haps_fit %>%
         #        gt18 = ifelse(chr18_267 == 2, 1, 0),
         #        gt5 = ifelse(chr5_6193 == 2, 1, 0),
         #        gt7 = ifelse(chr7_12119 == 2, 1, 0))
-        mutate(gt9 = as.factor(chr9_6571),
-               gt18 = as.factor(chr18_267),
-               gt5 = as.factor(chr5_6193),
-               gt7 = as.factor(chr7_12119))
+        mutate(gt18 = as.factor(chr18_267),
+               gt5 = as.factor(chr5_6293),
+               gt7 = as.factor(chr7_12196))
 
 # lme4
 # time saver function for modeling
@@ -50,11 +49,16 @@ nlopt <- function(par, fn, lower, upper, control) {
         )
 }
 
-fit_glmer <- glmer(survival ~ chr4_6724+chr9_7021+chr22_804+chr3_632 + sex + froh_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + sex + weight_std + froh_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
                    data = mod_df, family = binomial(link = "logit"),
                    control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
+
+fit_lmer <- lmer(weight_std ~ gt5 + gt18 + gt7 + sex + froh_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+                   data = mod_df)
+tidy(fit_lmer, conf.int = TRUE)
+
 fit_glmer <- glmer(survival ~ gt9 + gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
              data = mod_df, family = binomial(link = "logit"),
              control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
@@ -64,9 +68,9 @@ binned_residuals(fit_glmer)
 estimate_contrasts(fit_glmer, transform = "response", contrast = "gt9")
 
 # brms #  + gt18 + gt5 + gt7 +
-fit <- brm(survival ~ gt9 + gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + (1|birth_year) + (1|mum_id),
+fit <- brm(survival ~  gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + (1|birth_year) + (1|mum_id),
            data = mod_df, family = bernoulli(), 
-           iter = 10000, thin = 1,
+           #iter = 10000, thin = 1,
            set_prior("normal(0,5)", class = "b"))
 #saveRDS(fit, "output/haps_fitness_mod.RDS")
 fit <- readRDS("output/haps_fitness_mod.RDS")
