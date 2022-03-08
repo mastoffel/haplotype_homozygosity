@@ -70,7 +70,7 @@ estimate_contrasts(fit_glmer, transform = "response", contrast = "gt9")
 # brms #  + gt18 + gt5 + gt7 +
 fit <- brm(survival ~  gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + (1|birth_year) + (1|mum_id),
            data = mod_df, family = bernoulli(), 
-           #iter = 10000, thin = 1,
+           iter = 10000, thin = 1,
            set_prior("normal(0,5)", class = "b"))
 #saveRDS(fit, "output/haps_fitness_mod.RDS")
 fit <- readRDS("output/haps_fitness_mod.RDS")
@@ -85,12 +85,12 @@ binned_residuals(fit, term = "sex")
 
 # get marginal differences on probability scale 
 # posterior estimates for all fixed effects
-post <- as.matrix(posterior_samples(fit)[c(1:10, 12)])
+post <- as.matrix(posterior_samples(fit)[c(1:8, 10)])
 dim(post)
-preds <- rbind(diag(1, nrow = 8, ncol = 8), rep(0, 8)) %>% 
+preds <- rbind(diag(1, nrow = 6, ncol = 6), rep(0, 6)) %>% 
                 as.matrix() %>% 
                 as_tibble() %>% 
-                setNames(colnames(post)[2:9]) %>% 
+                setNames(colnames(post)[2:7]) %>% 
         add_column(intercept = 1, .before = 1) %>% 
         # average marginal effect
         mutate(sex = mean(ifelse(mod_df$sex == "F", 0, 1))) %>% 
@@ -113,7 +113,7 @@ get_surv <- function(vals, post){
 
 diff_probs <- apply(preds, 1, get_surv, post) %>% 
         as_tibble() %>% 
-        setNames(c("gt91", "gt92", "gt181", "gt182", "gt51", "gt52", 
+        setNames(c("gt181", "gt182", "gt51", "gt52", 
                    "gt71", "gt72", "nogt")) %>% 
         map_df(function(x) (x - .$nogt)*100) %>% 
         select(-nogt) %>% 

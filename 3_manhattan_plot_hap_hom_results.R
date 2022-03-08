@@ -146,9 +146,10 @@ top_haps <- read_delim(here("output", "top_haps_400.txt")) %>%
               mutate(prop_obs = ifelse(type == "exp", "", paste0("(", prop_obs, ")"))) %>% 
               mutate(count_label = paste0(round(ind_count,0))) %>% 
               mutate(region = factor(region, levels = c("chr5_6293", "chr7_12196",
-                                                        "chr18_267")))
+                                                        "chr18_267"))) %>% 
+              mutate(type_region = paste0(region, type))
 
-p_num <- ggplot(top_haps, aes(type, ind_count, col = type)) +
+p_num <- ggplot(top_haps, aes(type, ind_count, col = type_region)) +
   #geom_col(fill = "#ccbe9b") +
   geom_point(size = 2.5) +
   geom_segment(aes(x=type, xend=type, y=0, yend=ind_count)) +
@@ -158,7 +159,8 @@ p_num <- ggplot(top_haps, aes(type, ind_count, col = type)) +
   #ylab("Haplotype\nfrequency") +
   ylab("# Homozygous\noffspring") +
   xlab("Category") +
-  scale_color_manual(values = c("#2E3440","#5E81AC")) +
+  scale_color_manual(values = c("#2E3440", "#B48EAD", "#2E3440", "#5E81AC",
+                                "#2E3440", "#A3BE8C")) +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         legend.position = "none",
@@ -176,16 +178,35 @@ p_num
 
 # haplotype frequency plots
 haps_all <- read_delim(here("output", "haps400_and_fitness.txt"))
+
+# get genedrops
+hap_names <- c("chr18_267", "chr7_12196",
+               "chr5_6293")
+load_gd <- function(hap_name) {
+  gd <- read_delim(here("output", paste0("genedrop_hap_", hap_name, ".txt")))
+  gd_summ <- summary_genedrop(gd)[[2]] %>% 
+              as_tibble() %>% 
+              mutate(region = hap_name)
+}
+genedrops <- map_dfr(hap_names, load_gd) %>% 
+              rename(birth_year = Cohort, freq = count)
+
+
 p_freq <- haps_all %>% 
         mutate(region = factor(region),
                region = fct_reorder(region, chr)) %>% 
-        filter(as.numeric(as.character(birth_year)) > 1990) %>% 
+        filter(as.numeric(as.character(birth_year)) >= 1990) %>% 
         group_by(birth_year, region) %>% 
         summarise(freq = sum(gt) / (n()*2)) %>% 
         ungroup() %>% 
         #mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
-        ggplot(aes(birth_year, freq, group = 1)) +
-        geom_line(size = 1.2, color = "#5E81AC") +
+        ggplot(aes(birth_year, freq, group = 1, color = region)) +
+        geom_line(data=genedrops, alpha = 0.7, aes(group = Simulation),
+                  size = 0.05, color = "#D8DEE9")+
+        geom_line(size = 1.2) +
+       
+        scale_color_manual(values = c( "#B48EAD",  "#5E81AC",
+                                       "#A3BE8C")) +
         #geom_smooth(method = "lm", se = FALSE) +
         facet_grid(~region, labeller=labeller(region = hap_names)) + 
         theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
@@ -200,14 +221,7 @@ p_freq <- haps_all %>%
 p_freq
 ggsave("figs/hap_freq.jpg", p_freq, width = 7, height = 2)
 
-
-
-
-
-
-
-
-
+library(tidybayes)
 # survival plots
 surv <- read_delim(here("output", "survival_marginal_effects.txt"))
 
@@ -216,10 +230,9 @@ p_surv <- surv %>%
   mutate(chr = case_when(
     chr == "5" ~ "hap05",
     chr == "7" ~ "hap07",
-    chr == "9" ~ "hap09",
     chr == "18" ~ "hap18"
   )) %>% 
-  mutate(chr = factor(chr, levels = c("hap05", "hap07", "hap09", "hap18"))) %>% 
+  mutate(chr = factor(chr, levels = c("hap05", "hap07", "hap18"))) %>% 
   mutate(copies = str_sub(predictor, start = -1)) %>% 
   ggplot(aes(x = estimate, y = copies)) +
   stat_halfeye(#mapping = aes(fill=stat(
@@ -236,21 +249,21 @@ p_surv <- surv %>%
   scale_x_continuous(breaks = seq(-30, 30, 10), limits = c(-35, 35), 
                      labels = c("", "-20%", "", "0%", "", "20%", "")) + #limits = c(-36, 36)
   ylab("Haplotype\ncopies") +
-  xlab("change in first-year survival probability") +
+  xlab("Change in predicted first-year survival") +
   #scale_fill_brewer(direction = -1, na.translate = FALSE) +
   theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         legend.position = "none",
-        panel.spacing = unit(1, "lines")) 
+        panel.spacing = unit(2.5, "lines")) 
 p_surv
 
-p_final <- p_gwas / p_freq / p_surv   +
-        plot_layout(heights = c(2, 1.3, 1.5)) +
+p_final <- p_gwas / p_num/ p_freq / p_surv   +
+        plot_layout(heights = c(2, 1.3, 1.5, 1.5)) +
         plot_annotation(tag_levels = "A")
 p_final
 
-ggsave("figs/haplotype_fig1.jpg", width = 8, height = 6)
+ggsave("figs/haplotype_fig1.jpg", width = 7, height = 9)
 
 
 
