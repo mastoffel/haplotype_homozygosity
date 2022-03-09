@@ -5,6 +5,8 @@ library(patchwork)
 library(data.table)
 library(GWASTools)
 library(ggeffects)
+library(tidybayes)
+library(genedroppeR)
 # read results from haplotype homozygosity scan
 all_files <- list.files(here("output", "hap_results_imputed", "hap_len_400"), full.names = TRUE)
 
@@ -71,15 +73,9 @@ gwas_plot <- gwas_plot_tmp %>%
                 group_by(chromosome) %>% 
                 mutate(top_snp = ifelse(p_val == min(p_val), 1, 0)) %>% 
                 group_by(chromosome, top_snp) %>% 
-                mutate(top_snp2 = ifelse(top_snp == 1 & pos == min(pos) , 1, 0)) %>% 
-                mutate(highlight = case_when(
-                        top_snp2 == 1 & chromosome == 7 ~ 1,
-                        top_snp2 == 1 & chromosome != 7 ~ 2,
-                        top_snp2 != 1 & chromosome %% 2 == 0 ~ 3,
-                        top_snp2 != 1 & chromosome %% 2 != 0 ~ 4
-                )) %>% 
-                mutate(highlight = factor(highlight))
-
+                mutate(top_snp2 = ifelse(top_snp == 1 & pos == min(pos) , 1, 0)) 
+  
+library(ggnewscale)
 p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
         geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
         geom_point(data = gwas_plot %>% filter(-log10(p_val) <= -log10(0.05/(eff_tests))),
@@ -95,13 +91,14 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         ylab(expression(-log[10](italic(p)))) +
         scale_fill_manual(values = c("#ECEFF4","#d8dee9")) +
         scale_color_manual(values = c("#ECEFF4","#d8dee9")) + # #dbe1eb #d1d8e5  "#ECEFF4" #d8dee9
-        geom_point(data = gwas_plot %>% filter(highlight %in% c(1)) %>%
-                           filter(p_val < 0.05/(eff_tests)),
-                   size = 2.5, shape = 21, stroke = 0.1, fill = "#5E81AC", color = "black") + # "#94350b"
-        geom_point(data = gwas_plot %>% filter(highlight %in% c(2)) %>%
-                           filter(p_val < 0.05/(eff_tests)),
-                   size = 2.5, shape = 21, stroke = 0.1, fill = "#5E81AC", color = "black") +  # "#ccbe9b"
+        guides(fill=FALSE, color = FALSE) +
+        new_scale_fill() +
+        geom_point(data = gwas_plot %>% 
+                           filter(p_val < 0.05/(eff_tests)) %>% 
+                           filter(top_snp2 == 1),
+                   size = 3, shape = 21, stroke = 0.1, mapping = aes(fill = snp)) + # "#94350b"
         theme_simple(axis_lines = TRUE, grid_lines = FALSE) +
+        scale_fill_manual(values = c( "#B48EAD",  "#5E81AC","#A3BE8C")) +
         theme(axis.text = element_text(color = "black"), # axis.text.x size 8
               axis.ticks = element_line(size = 0.1)) +
         guides(fill=FALSE, color = FALSE)# +
@@ -189,8 +186,9 @@ load_gd <- function(hap_name) {
               mutate(region = hap_name)
 }
 genedrops <- map_dfr(hap_names, load_gd) %>% 
-              rename(birth_year = Cohort, freq = count)
-
+              rename(birth_year = Cohort, freq = Count) %>% 
+              mutate(region = factor(region, levels = c("chr5_6293", "chr7_12196",
+                                            "chr18_267")))
 
 p_freq <- haps_all %>% 
         mutate(region = factor(region),
@@ -201,12 +199,11 @@ p_freq <- haps_all %>%
         ungroup() %>% 
         #mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
         ggplot(aes(birth_year, freq, group = 1, color = region)) +
-        geom_line(data=genedrops, alpha = 0.7, aes(group = Simulation),
+        geom_line(data=genedrops, alpha = 0.7, aes(y = p, group = Simulation),
                   size = 0.05, color = "#D8DEE9")+
         geom_line(size = 1.2) +
-       
-        scale_color_manual(values = c( "#B48EAD",  "#5E81AC",
-                                       "#A3BE8C")) +
+        scale_color_manual(values = rev(c("#B48EAD", "#5E81AC",
+                                      "#A3BE8C"))) +
         #geom_smooth(method = "lm", se = FALSE) +
         facet_grid(~region, labeller=labeller(region = hap_names)) + 
         theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
@@ -219,9 +216,9 @@ p_freq <- haps_all %>%
               panel.spacing = unit(2.5, "lines"))
              # panel.grid.major.y = element_line(size = 0.1, color = "#4C566A")) 
 p_freq
-ggsave("figs/hap_freq.jpg", p_freq, width = 7, height = 2)
+#ggsave("figs/hap_freq.jpg", p_freq, width = 7, height = 2)
 
-library(tidybayes)
+
 # survival plots
 surv <- read_delim(here("output", "survival_marginal_effects.txt"))
 
@@ -234,17 +231,22 @@ p_surv <- surv %>%
   )) %>% 
   mutate(chr = factor(chr, levels = c("hap05", "hap07", "hap18"))) %>% 
   mutate(copies = str_sub(predictor, start = -1)) %>% 
-  ggplot(aes(x = estimate, y = copies)) +
+  ggplot(aes(x = estimate, y = copies, color = chr)) +
   stat_halfeye(#mapping = aes(fill=stat(
     #cut_cdf_qi(cdf, .width = c(.66,.95,1)))),
-    interval_color = "#4C566A",
-    point_color = "#4C566A",
-    slab_color = "#4C566A",
-    slab_size = 0.1,
+    mapping = aes(
+        #interval_color = chr,
+        #point_color = chr,
+        slab_color = chr),
+    #interval_color = "#4C566A",
+    #point_color = "#4C566A",
+    #slab_color = "#4C566A",
+    slab_size = 0.2,
     slab_fill = "#E5E9F0"
   ) +
   geom_vline(xintercept = 0, linetype = "dashed") +
-  scale_fill_manual(values = c("#D8DEE9", "#E5E9F0", "#ECEFF4")) +
+  scale_color_manual(values = c("#B48EAD", "#5E81AC","#A3BE8C")) +
+  #scale_fill_manual(values = c("#B48EAD", "#5E81AC","#A3BE8C")) +
   facet_grid(~chr ,scales = "free_x") +
   scale_x_continuous(breaks = seq(-30, 30, 10), limits = c(-35, 35), 
                      labels = c("", "-20%", "", "0%", "", "20%", "")) + #limits = c(-36, 36)
