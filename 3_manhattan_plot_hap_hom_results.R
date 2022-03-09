@@ -42,6 +42,11 @@ snp_map <- fread(here("data", "plink", "sheep.bim")) %>%
 res <- res_full %>% 
         left_join(snp_map, by = c("chr", "snp_num"))
 
+# plots
+cols <- c("#33658A", "#86BBD8", "#2F4858")
+cols <- c("")
+#c( "#D08770",  "#5E81AC","#A3BE8C")
+
 # chromosome info from assembly
 chr_info <- read_delim("data/chromosome_info_oar31.txt", "\t") %>% 
         .[-1, ] %>% 
@@ -69,7 +74,7 @@ cols <- c("#336B87", "#2A3132")
 #cols <- viridis(2)
 eff_tests <- 39149 #39149
 gwas_plot <- gwas_plot_tmp %>% 
-                filter(p_val < 0.01) %>% 
+                #filter(p_val < 0.01) %>% 
                 group_by(chromosome) %>% 
                 mutate(top_snp = ifelse(p_val == min(p_val), 1, 0)) %>% 
                 group_by(chromosome, top_snp) %>% 
@@ -98,7 +103,7 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
                            filter(top_snp2 == 1),
                    size = 3, shape = 21, stroke = 0.1, mapping = aes(fill = snp)) + # "#94350b"
         theme_simple(axis_lines = TRUE, grid_lines = FALSE) +
-        scale_fill_manual(values = c( "#B48EAD",  "#5E81AC","#A3BE8C")) +
+        scale_fill_manual(values = cols[c(3,1,2)]) +
         theme(axis.text = element_text(color = "black"), # axis.text.x size 8
               axis.ticks = element_line(size = 0.1)) +
         guides(fill=FALSE, color = FALSE)# +
@@ -156,8 +161,8 @@ p_num <- ggplot(top_haps, aes(type, ind_count, col = type_region)) +
   #ylab("Haplotype\nfrequency") +
   ylab("# Homozygous\noffspring") +
   xlab("Category") +
-  scale_color_manual(values = c("#2E3440", "#B48EAD", "#2E3440", "#5E81AC",
-                                "#2E3440", "#A3BE8C")) +
+  scale_color_manual(values = c("#2E3440", cols[3], "#2E3440", cols[1],
+                                "#2E3440", cols[2])) +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         legend.position = "none",
@@ -172,12 +177,11 @@ p_num
 #ggsave("figs/manhattans_imputed2.jpg", p_final, width = 9, height = 14)
 
 
-
 # haplotype frequency plots
 haps_all <- read_delim(here("output", "haps400_and_fitness.txt"))
 
 # get genedrops
-hap_names <- c("chr18_267", "chr7_12196",
+hap_names_full <- c("chr18_267", "chr7_12196",
                "chr5_6293")
 load_gd <- function(hap_name) {
   gd <- read_delim(here("output", paste0("genedrop_hap_", hap_name, ".txt")))
@@ -185,7 +189,7 @@ load_gd <- function(hap_name) {
               as_tibble() %>% 
               mutate(region = hap_name)
 }
-genedrops <- map_dfr(hap_names, load_gd) %>% 
+genedrops <- map_dfr(hap_names_full, load_gd) %>% 
               rename(birth_year = Cohort, freq = Count) %>% 
               mutate(region = factor(region, levels = c("chr5_6293", "chr7_12196",
                                             "chr18_267")))
@@ -202,8 +206,7 @@ p_freq <- haps_all %>%
         geom_line(data=genedrops, alpha = 0.7, aes(y = p, group = Simulation),
                   size = 0.05, color = "#D8DEE9")+
         geom_line(size = 1.2) +
-        scale_color_manual(values = rev(c("#B48EAD", "#5E81AC",
-                                      "#A3BE8C"))) +
+        scale_color_manual(values = cols) +
         #geom_smooth(method = "lm", se = FALSE) +
         facet_grid(~region, labeller=labeller(region = hap_names)) + 
         theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
@@ -223,7 +226,7 @@ p_freq
 surv <- read_delim(here("output", "survival_marginal_effects.txt"))
 
 p_surv <- surv %>% 
-  mutate(chr = str_remove(hap, "gt")) %>% 
+  mutate(chr = str_remove(hap, "gt"))%>% 
   mutate(chr = case_when(
     chr == "5" ~ "hap05",
     chr == "7" ~ "hap07",
@@ -231,22 +234,32 @@ p_surv <- surv %>%
   )) %>% 
   mutate(chr = factor(chr, levels = c("hap05", "hap07", "hap18"))) %>% 
   mutate(copies = str_sub(predictor, start = -1)) %>% 
-  ggplot(aes(x = estimate, y = copies, color = chr)) +
+  ggplot(aes(x = estimate, y = copies,
+    color = chr,
+    fill = chr)) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 1) +
   stat_halfeye(#mapping = aes(fill=stat(
     #cut_cdf_qi(cdf, .width = c(.66,.95,1)))),
-    mapping = aes(
-        #interval_color = chr,
-        #point_color = chr,
-        slab_color = chr),
     #interval_color = "#4C566A",
     #point_color = "#4C566A",
     #slab_color = "#4C566A",
-    slab_size = 0.2,
-    slab_fill = "#E5E9F0"
+    adjust = 3,
+    #width = .6,
+    #.width = 0, 
+    justification = -.1, 
+    height = 0.8,
+    slab_size = 0.5,
+    slab_alpha = 0.7
+    #slab_fill = "#E5E9F0"
   ) +
-  geom_vline(xintercept = 0, linetype = "dashed") +
-  scale_color_manual(values = c("#B48EAD", "#5E81AC","#A3BE8C")) +
-  #scale_fill_manual(values = c("#B48EAD", "#5E81AC","#A3BE8C")) +
+
+  #scale_slab_color_discrete(cols) +
+  scale_color_manual(values = cols) +
+  scale_fill_manual(values = cols) +
+ # scale_slab_color_discrete(values = cols) +
+  #scale_fill_manual(values=cols)+
+  #scale_slab_color_discrete() +
+  #scale_fill_manual(values = c("#D08770", "#5E81AC","#A3BE8C")) +
   facet_grid(~chr ,scales = "free_x") +
   scale_x_continuous(breaks = seq(-30, 30, 10), limits = c(-35, 35), 
                      labels = c("", "-20%", "", "0%", "", "20%", "")) + #limits = c(-36, 36)
@@ -265,7 +278,7 @@ p_final <- p_gwas / p_num/ p_freq / p_surv   +
         plot_annotation(tag_levels = "A")
 p_final
 
-ggsave("figs/haplotype_fig1.jpg", width = 7, height = 9)
+ggsave("figs/haplotype_fig1_2.jpg", width = 7, height = 8)
 
 
 
