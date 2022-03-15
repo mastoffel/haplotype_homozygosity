@@ -14,12 +14,23 @@ muts <- full %>%
         group_by(run, mut_id, pos, s, originG) %>% 
         tally() %>% 
         mutate(freq = n/(n_sample*2)) %>% 
-        ungroup() %>% 
+        ungroup() #%>% 
         #mutate(classes = cut(s, breaks = seq(0, -1, -0.05))) %>% 
-        mutate(classes = cut(s, breaks = 30)) %>% 
-        group_by(classes) %>% 
-        summarise(n = mean(n), freq = mean(freq))
-      
+       # mutate(classes = cut(s, breaks = 30)) %>% 
+        #group_by(classes) %>% 
+        #summarise(n = mean(n), freq = mean(freq))
+
+# get proportion moderate (10 < NeS < 100) muts
+# and strong (NeS > 100)
+muts %>% 
+  mutate(s_class = case_when(
+      200*s > -10 ~ "small",
+      (200*s < -10) & (200*s > -100) ~ "moderate",
+      200*s <= -100 ~ "strong")) %>% 
+  group_by(run, s_class) %>% 
+  summarise(n = n()) %>% 
+  mutate(freq = n / sum(n))
+  
   
 ggplot(muts, aes(s, freq)) +
   geom_hex(bins = 30) + 
