@@ -62,18 +62,18 @@ sheep_UF <- genedrop_snp(id = sheep$id,
                          father = sheep$father,
                          cohort = sheep$cohort,
                          genotype = sheep$gt,
-                         nsim = 500,
-                         n_founder_cohorts = 10,
-                         fix_founders = F,
+                         nsim = 300,
+                         n_founder_cohorts = 8,
+                         fix_founders = T,
                          verbose = T,
-                         interval = 100)
+                         interval = 50)
 tibble(sheep_UF)
 sheep_UF_summ <- summary_genedrop(sheep_UF)
 str(sheep_UF_summ)
 plot_genedrop_results(sheep_UF_summ)
 
 plot_genedrop_lm_slopes(sheep_UF_summ,
-                        n_founder_cohorts = 10,
+                        n_founder_cohorts = 8,
                         remove_founders = F)
 plot_genedrop_cumulative_change(sheep_UF_summ)
 

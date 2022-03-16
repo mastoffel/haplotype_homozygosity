@@ -30,6 +30,17 @@ muts %>%
   group_by(run, s_class) %>% 
   summarise(n = n()) %>% 
   mutate(freq = n / sum(n))
+
+full %>% 
+  group_by(run) %>% 
+  mutate(s_class = case_when(
+    200*s > -10 ~ "small",
+    (200*s < -10) & (200*s > -100) ~ "moderate",
+    200*s <= -100 ~ "strong")) %>% 
+  group_by(s_class) %>% 
+  summarise(n = n()) %>% 
+  mutate(freq = n / sum(n))
+
   
   
 ggplot(muts, aes(s, freq)) +
@@ -89,12 +100,19 @@ p1 <- ggplot(muts, aes(s, freq)) +
 p1
 
 # plot 2
+n <- 200
 gamma <- data.frame(s = c(-rgamma(n*0.95, shape = 0.5, scale = 0.1), rep( -1,n*0.05)))
 mean(rgamma(1000000, shape = 0.5, scale = 0.1))
 
 df <- full %>% 
   #filter(run == 1) %>% 
   bind_rows(gamma, .id = "type") 
+
+ggplot(full) +
+  geom_histogram(
+                 aes(x = s, y = -stat(count) / sum(count)), fill="#D8DEE9", 
+                 bins = 20, color = "black", size = 0.1)
+
 
 # h = 0.5e-13s
 p2 <- ggplot(df %>% filter(type == 2), aes(x=s, color = type)) +
@@ -107,7 +125,7 @@ p2 <- ggplot(df %>% filter(type == 2), aes(x=s, color = type)) +
                  aes(x = s, y = -stat(count) / sum(count)), fill="#D8DEE9", 
                  bins = 20, color = "black", size = 0.1) +
   theme_simple(grid_lines = FALSE) +
-  scale_y_continuous(name = "Proportion of loci", breaks = seq(-0.6, 0.6, 0.2), 
+  scale_y_continuous(name = "Proportion of mutations", breaks = seq(-0.6, 0.6, 0.2), 
                      labels = paste0(c(seq(60, 10, -20), seq(0, 60, 20)), "%")) +
                      #labels = scales::percent) +
   xlab("Selection coefficient") +
