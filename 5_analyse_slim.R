@@ -24,7 +24,8 @@ muts <- full %>%
 # and strong (NeS > 100)
 muts %>% 
   mutate(s_class = case_when(
-      200*s > -10 ~ "small",
+      200*s > -1 ~ "neutral",
+      200*s > -10 & 200*s < -1 ~ "small",
       (200*s < -10) & (200*s > -100) ~ "moderate",
       200*s <= -100 ~ "strong")) %>% 
   group_by(run, s_class) %>% 
@@ -34,9 +35,10 @@ muts %>%
 full %>% 
   group_by(run) %>% 
   mutate(s_class = case_when(
-    200*s > -10 ~ "small",
+    200*s > -1 ~ "neutral",
+    200*s > -10 & 200*s < -1 ~ "small",
     (200*s < -10) & (200*s > -100) ~ "moderate",
-    200*s <= -100 ~ "strong")) %>% 
+    200*s <= -100 ~ "strong")) %>%  
   group_by(s_class) %>% 
   summarise(n = n()) %>% 
   mutate(freq = n / sum(n))

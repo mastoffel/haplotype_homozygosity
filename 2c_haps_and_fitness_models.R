@@ -15,16 +15,17 @@ mod_df <- haps_fit %>%
         filter(#region == location,
                 #sex == s,
                 age == 0) %>% 
-        select(survival, region, gt, sex, froh_all, twin, weight, mum_age, 
+        select(survival, region, gt, sex, froh_all, twin, weight, mum_age,  weight, hindleg, birthwt,
                birth_year, mum_id) %>% 
         # drop all rows with missing values
         drop_na() %>% 
         mutate(gt = as.factor(gt),
                froh_std = as.numeric(scale(froh_all)),
                weight_std = as.numeric(scale(weight)),
+               hindleg_std = as.numeric(scale(hindleg)),
                mum_age_std = as.numeric(scale(mum_age)),
                mum_age_std2 = mum_age_std^2) %>% 
-        select(survival, region, gt, sex, froh_std, twin, weight_std, mum_age_std, 
+        select(survival, region, gt, sex, froh_std, twin, weight_std, mum_age_std, weight, hindleg_std, birthwt,
                birth_year, mum_id) %>% 
         pivot_wider(names_from = region, values_from = gt) %>% 
         
@@ -52,6 +53,11 @@ nlopt <- function(par, fn, lower, upper, control) {
 fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + sex + weight_std + froh_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
                    data = mod_df, family = binomial(link = "logit"),
                    control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
+out <- tidy(fit_glmer, conf.int = TRUE)
+out
+
+fit_glmer <- lmer(weight ~ gt5 + gt18 + gt7 + hindleg_std + mum_age_std + froh_std + sex + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+                   data = mod_df)
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
 
@@ -123,8 +129,21 @@ diff_probs <- apply(preds, 1, get_surv, post) %>%
 write_delim(diff_probs, here("output", "survival_marginal_effects.txt"))
 
 
+# pleiotropy? Fit model with weigh
+# brms #  + gt18 + gt5 + gt7 +
+fit <- brm(weight ~  gt18 + gt5 + gt7 + sex + hindleg_std + froh_std + twin + (1|birth_year) + (1|mum_id),
+           data = mod_df, family = "gaussian",
+           iter = 10000, thin = 1,
+           set_prior("normal(0,5)", class = "b"))
+#saveRDS(fit, "output/haps_weight_mod.RDS")
+fit <- readRDS("output/haps_weight_mod.RDS")
 
-
+prior_summary(fit)
+summary(fit)
+plot(fit)
+loo(fit)
+pp_check(fit, nsamples = 100)
+plot_model(fit)
 
 
 
