@@ -61,13 +61,12 @@ fit_glmer <- lmer(weight ~ gt5 + gt18 + gt7 + hindleg_std + mum_age_std + froh_s
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
 
-fit_lmer <- lmer(weight_std ~ gt5 + gt18 + gt7 + sex + froh_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+fit_lmer <- lmer(weight_std ~ gt5 + gt18 + gt7 + sex + froh_std + hindleg_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
                    data = mod_df)
 tidy(fit_lmer, conf.int = TRUE)
 
-fit_glmer <- glmer(survival ~ gt9 + gt18 + gt5 + gt7 + sex + froh_std + twin + weight_std + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
-             data = mod_df, family = binomial(link = "logit"),
-             control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
+fit_glmer <- glmer(survival ~ gt18 + gt5 + gt7 + sex + froh_std + twin + mum_age_std + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+             data = mod_df, family = binomial(link = "probit"))
 tidy(fit_glmer, conf.int = TRUE)
 binned_residuals(fit_glmer)
 
@@ -137,7 +136,7 @@ fit <- brm(weight ~  gt18 + gt5 + gt7 + sex + hindleg_std + froh_std + twin + (1
            set_prior("normal(0,5)", class = "b"))
 #saveRDS(fit, "output/haps_weight_mod.RDS")
 fit <- readRDS("output/haps_weight_mod.RDS")
-
+tidy(fit)
 prior_summary(fit)
 summary(fit)
 plot(fit)
