@@ -285,28 +285,19 @@ p_weight <- post_df %>%
            color = chr,
            fill = chr)) +
   geom_vline(xintercept = 0, linetype = "dashed", alpha = 1) +
-  stat_halfeye(#mapping = aes(fill=stat(
-    #cut_cdf_qi(cdf, .width = c(.66,.95,1)))),
-    #interval_color = "#4C566A",
-    #point_color = "#4C566A",
-    #slab_color = "#4C566A",
+  stat_halfeye(
     adjust = 3,
-    #width = .6,
-    #.width = 0, 
     justification = -.1, 
     height = 0.8,
     slab_size = 0.5,
     slab_alpha = 0.7
-    #slab_fill = "#E5E9F0"
   ) +
   scale_color_manual(values = cols) +
   scale_fill_manual(values = cols) +
   facet_grid(~chr ,scales = "free_x") +
   scale_x_continuous(breaks = seq(-1, 1, 0.5), limits = c(-1, 1)) +
-                     #labels = c("", "-20%", "", "0%", "", "20%", "")) + #limits = c(-36, 36)
   ylab("Haplotype\ncopies") +
   xlab("Predicted change in body weight") +
-  #scale_fill_brewer(direction = -1, na.translate = FALSE) +
   theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),

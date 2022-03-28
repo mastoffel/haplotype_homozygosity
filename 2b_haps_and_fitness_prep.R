@@ -11,7 +11,6 @@ library(broom.mixed)
 library(wesanderson)
 source("theme_simple.R")
 
-
 # fitness
 load("data/fitness_roh.RData") 
 age <- fitness_data %>% 
@@ -38,19 +37,19 @@ snp_map <- fread(here("data", "plink", "sheep.bim")) %>%
 
 # target haplotypes:
 # read results from haplotype homozygosity scan
-all_files <- list.files(here("output", "hap_results_imputed", "hap_len_400"), full.names = TRUE)
+all_files <- list.files(here("output", "hap_results_imputed", "hap_len_500"), full.names = TRUE)
 results <- map(all_files, read_delim, delim = "\t") %>%  #read_delim, delim = "\t"
         bind_rows()
 
+# get top hits below p < 0.05/39184
 # note: sometimes there are two significant haplotypes starting with the same 
 # snp -> need to be merged eventually
 top_haps <- results %>% 
-        # get haplotypes which are significant because there are fewer homozyous
-        # haplotypes as expected
+        # fewer homozyous offspring as expected
         filter(obs < exp) %>% 
         filter(p_val < (0.05/39184)) %>% # 417373 # 39184
         arrange(chr, snp_start) %>% 
-        # workflow to get only one haplotype per genome-region
+        # get only one haplotype per genome-region
         group_by(chr) %>% 
         # work with lag, the default gets around the a problem
         # when the haplotype starts at the very beginning of a chromosome
@@ -74,17 +73,13 @@ top_haps <- results %>%
         filter(row_number()==1) 
       
 top_haps
-write_delim(top_haps, here("output", "top_haps_400.txt"))
-top_haps <- read_delim(here("output", "top_haps_400.txt"))
-# on chromosome 9, it's two significant haplotypes at the same location
-# they only differ by one mutation
-# hap_seq <- unlist(str_split(top_haps[1, ]$haps, "_"))
-# diff_haps <- strsplit(hap_seq[1], "")[[1]] == strsplit(hap_seq[2], "")[[1]]
-# which(!diff_haps)
-# strsplit(hap_seq[2], "")[[1]][!diff_haps]
-# snp_map %>% 
-#   filter(chr == 14) %>% 
-#   filter(snp_num == (6599+ which(!diff_haps) - 1))
+write_delim(top_haps, here("output", "top_haps_500.txt"))
+top_haps <- read_delim(here("output", "top_haps_500.txt"))
+
+# get haploptype details
+snp_map %>% filter(chr == 5, snp_num == 6293 | snp_num ==6293+400) %>% mutate(pos_mb = pos/1e6)
+snp_map %>% filter(chr == 7, snp_num == 12326 | snp_num ==12326+400) %>% mutate(pos_mb = pos/1e6)
+snp_map %>% filter(chr == 7, snp_num == 498 | snp_num ==498+400) %>% mutate(pos_mb = pos/1e6)
 
 # take top haplotype and get genotypes for hom/het/alt_hom 
 hap_to_geno <- function(i, top_haps) {
@@ -172,14 +167,13 @@ haps_all <- haps %>%
         #mutate(gt = as.factor(gt))
 
 haps_all %>% 
-        write_delim(here("output", "haps400_and_fitness.txt"), " ")
+        write_delim(here("output", "haps500_and_fitness.txt"), " ")
 # top haplotype genotypes per individual
 # save
 haps_ind <- haps %>% 
             setNames(top_haps$region) %>% 
             bind_rows(.id = "region") %>% 
-            write_delim(here("output", "sheep_top_haps_400.txt"), " ")
-
+            write_delim(here("output", "sheep_top_haps_500.txt"), " ")
 
 
 # haplotype frequency over time

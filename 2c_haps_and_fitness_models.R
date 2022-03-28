@@ -9,7 +9,7 @@ library(here)
 source("theme_simple.R")
 library(broom.mixed)
 
-haps_fit <- read_delim(here("output", "haps400_and_fitness.txt"))
+haps_fit <- read_delim(here("output", "haps500_and_fitness.txt"))
 
 mod_df <- haps_fit %>% 
         filter(#region == location,
@@ -28,15 +28,12 @@ mod_df <- haps_fit %>%
         select(survival, region, gt, sex, froh_std, twin, weight_std, mum_age_std, weight, hindleg_std, birthwt,
                birth_year, mum_id) %>% 
         pivot_wider(names_from = region, values_from = gt) %>% 
-        
-        # mutate(gt9 = ifelse(chr9_6571 == 2, 1, 0),
-        #        gt18 = ifelse(chr18_267 == 2, 1, 0),
-        #        gt5 = ifelse(chr5_6193 == 2, 1, 0),
-        #        gt7 = ifelse(chr7_12119 == 2, 1, 0))
+        # mutate(gt18 = as.factor(chr18_267),
+        #        gt5 = as.factor(chr5_6293),
+        #        gt7 = as.factor(chr7_12196))
         mutate(gt18 = as.factor(chr18_267),
-               gt5 = as.factor(chr5_6293),
-               gt7 = as.factor(chr7_12196))
-
+               gt5 = as.factor(chr5_6193),
+               gt7 = as.factor(chr7_12119))
 # lme4
 # time saver function for modeling
 nlopt <- function(par, fn, lower, upper, control) {
@@ -50,7 +47,7 @@ nlopt <- function(par, fn, lower, upper, control) {
         )
 }
 
-fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + sex + weight_std + froh_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + sex + froh_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
                    data = mod_df, family = binomial(link = "logit"),
                    control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 out <- tidy(fit_glmer, conf.int = TRUE)
