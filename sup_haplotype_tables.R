@@ -3,7 +3,7 @@
 library(snpStats)
 library(tidyverse)
 library(data.table)
-
+library(here)
 top_haps <- read_delim(here("output", "top_haps_400.txt"))
 top_haps
 
@@ -40,5 +40,64 @@ hap_bases <- function(top_hap_num){
         
 }
 
-top_hap_table <- map_dfr(1:3, hap_bases)
+top_hap_table <- map_dfr(1:3, hap_bases) %>% 
+                        mutate(snps = paste0(start_snp, "-\n", end_snp)) %>% 
+                        select(-start_snp, -end_snp) %>% 
+                        mutate(pos = paste0(start_pos, "-\n", end_pos)) %>% 
+                        select(-start_pos, -end_pos)
+library(gt)
+gt(top_hap_table)
 
+# make function to insert \n evert 100 chars
+library(stringi)
+ins_linebreak <- function(s) {
+        paste(c(substr(s, 1, 50), "\n",
+              substr(s, 51, 100), "\n", 
+              substr(s, 101, 150), "\n",
+              substr(s, 151, 200), "\n",
+              substr(s, 201, 250), "\n", 
+              substr(s, 251, 300), "\n",
+              substr(s, 301, 350), "\n",
+              substr(s, 351, 400)), collapse = "")
+}
+library(scales)
+hap_table <- top_hap_table %>% 
+        rowwise() %>% 
+        mutate(hap = ins_linebreak(hap),
+               hap_bases = ins_linebreak(hap_bases)) %>% 
+        mutate(p_val = scientific(p_val, digits = 3))
+
+
+hap_table1 <- select(hap_table, -hap)
+hap_table2 <- select(hap_table, -hap_bases)
+gt(hap_table1) %>% 
+        cols_label(
+                #hap = "Haplotype binary (0 = Reference / 1 = Alternative Allele)",
+                hap_bases = "Haplotype",
+                p_val = "p value (chi-square test)",
+                obs = "# observed\nhomozyous\noffspring",
+                exp = "# expected\nhomozygous\noffspring",
+                num_carriers = "# carrier x carrier matings",
+                chr = "chromosome",
+                snps = "first SNP / last SNP",
+                pos = "start position / end position (bp)"
+                # start_pos = "start (bp)",
+                # end_pos = "end (bp)",
+                # start_snp = "start SNP",
+                # end_snp = "end SNP"
+                
+        ) %>% 
+        cols_width(
+                p_val ~ px(130),
+                num_carriers ~ px(100),
+                pos ~ px(150),
+                chr ~ px(50)
+        ) %>% 
+        cols_align(
+                align = c("left"),
+                columns = everything()
+        ) %>% 
+        gtsave(
+                "tables/haplotypes.png",
+                vwidth = 1400, vheight = 1000
+        )
