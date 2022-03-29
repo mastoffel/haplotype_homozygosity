@@ -246,7 +246,7 @@ p_surv <- surv %>%
   #scale_slab_color_discrete() +
   #scale_fill_manual(values = c("#D08770", "#5E81AC","#A3BE8C")) +
   facet_grid(~chr ,scales = "free_x") +
-  scale_x_continuous(breaks = seq(-30, 30, 10), limits = c(-35, 35), 
+  scale_x_continuous(breaks = seq(-30, 30, 10), limits = c(-31, 31), 
                      labels = c("", "-20%", "", "0%", "", "20%", "")) + #limits = c(-36, 36)
   ylab("Haplotype\ncopies") +
   xlab("Predicted change in first-year survival") +
@@ -295,16 +295,16 @@ p_weight <- post_df %>%
   scale_color_manual(values = cols) +
   scale_fill_manual(values = cols) +
   facet_grid(~chr ,scales = "free_x") +
-  scale_x_continuous(breaks = seq(-1, 1, 0.5), limits = c(-1, 1)) +
+  scale_x_continuous(breaks = seq(-1, 1, 0.5), limits = c(-0.5, 0.8)) +
   ylab("Haplotype\ncopies") +
-  xlab("Predicted change in body weight") +
+  xlab("Predicted change in body weight (kg)") +
   theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         legend.position = "none",
         panel.spacing = unit(2.5, "lines"),
         strip.text.x = element_blank()) 
-
+p_weight
 # final plot
 p_final <- p_gwas / p_num/ p_freq / p_weight / p_surv   +
   plot_layout(heights = c(2, 1.3, 1.5, 1.5, 1.5)) +
