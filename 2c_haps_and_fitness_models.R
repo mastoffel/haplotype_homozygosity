@@ -71,7 +71,6 @@ fit <- brm(survival ~  gt18 + gt5 + gt7 + sex + froh_std + twin + hindleg_std + 
            set_prior("normal(0,5)", class = "b"))
 saveRDS(fit, "output/haps_fitness_mod.RDS")
 fit <- readRDS("output/haps_fitness_mod.RDS")
-
 prior_summary(fit)
 summary(fit)
 plot(fit)

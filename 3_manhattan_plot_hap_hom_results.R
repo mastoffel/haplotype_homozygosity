@@ -210,6 +210,13 @@ p_freq
 # survival plots
 surv <- read_delim(here("output", "survival_marginal_effects.txt"))
 
+# get post. mean + CI
+surv %>% 
+  group_by(predictor) %>% 
+  summarise(post_mean = mean(estimate),
+            CI_lower = quantile(estimate, probs = 0.025),
+            CI_upper = quantile(estimate, probs = 0.975))
+
 p_surv <- surv %>% 
   mutate(chr = str_remove(hap, "gt"))%>% 
   mutate(chr = case_when(

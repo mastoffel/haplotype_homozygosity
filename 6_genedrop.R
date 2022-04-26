@@ -21,7 +21,7 @@ hap1 <- top_haps$hap[1]
 # haplotype "chr18_267"
 haps_fit <- read_delim(here("output", "haps400_and_fitness.txt")) %>% 
                 filter(age == 0) %>% 
-                filter(region == "chr18_267") %>% 
+                filter(region == "chr18_267") %>%  # chr7_12196 chr18_267
                 select(id, hap_a, hap_b, birth_year, sex) %>% 
                 mutate(hap_a = ifelse(hap_a == hap1, "A", "B"),
                        hap_b = ifelse(hap_b == hap1, "A", "B")) %>% 
@@ -62,8 +62,8 @@ sheep_UF <- genedrop_snp(id = sheep$id,
                          father = sheep$father,
                          cohort = sheep$cohort,
                          genotype = sheep$gt,
-                         nsim = 300,
-                         n_founder_cohorts = 8,
+                         nsim = 500,
+                         n_founder_cohorts = 8, #8
                          fix_founders = T,
                          verbose = T,
                          interval = 50)
@@ -73,7 +73,7 @@ str(sheep_UF_summ)
 plot_genedrop_results(sheep_UF_summ)
 
 plot_genedrop_lm_slopes(sheep_UF_summ,
-                        n_founder_cohorts = 8,
+                        n_founder_cohorts = 10,
                         remove_founders = F)
 plot_genedrop_cumulative_change(sheep_UF_summ)
 
@@ -127,13 +127,17 @@ sheep_UF <- genedrop_snp(id = sheep$id,
                          genotype = sheep$gt,
                          nsim = 500,
                          n_founder_cohorts = 10,
-                         fix_founders = F,
+                         fix_founders = T,
                          verbose = T,
                          interval = 100)
 tibble(sheep_UF)
 sheep_UF_summ <- summary_genedrop(sheep_UF)
 str(sheep_UF_summ)
 plot_genedrop_results(sheep_UF_summ)
+
+plot_genedrop_lm_slopes(sheep_UF_summ,
+                        n_founder_cohorts = 10,
+                        remove_founders = F)
 
 write_delim(sheep_UF, here("output", "genedrop_hap_chr7_12196.txt"))
 
