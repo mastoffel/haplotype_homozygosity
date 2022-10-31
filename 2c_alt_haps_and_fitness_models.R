@@ -9,7 +9,7 @@ library(here)
 source("theme_simple.R")
 library(broom.mixed)
 
-haps_fit <- read_delim(here("output", "haps400_and_fitness.txt"))
+haps_fit <- read_delim(here("output", "haps500_and_fitness.txt"))
 
 mod_df <- haps_fit %>% 
         filter(#region == location,
@@ -27,8 +27,8 @@ mod_df <- haps_fit %>%
                birth_year, mum_id) %>% 
         pivot_wider(names_from = region, values_from = gt) %>% 
         mutate(gt18 = as.factor(chr18_267),
-                gt5 = as.factor(chr5_6293),
-                gt7 = as.factor(chr7_12196))
+               gt5 = as.factor(chr5_6193),
+               gt7 = as.factor(chr7_12119))
 # lme4
 # time saver function for modeling
 nlopt <- function(par, fn, lower, upper, control) {
@@ -42,23 +42,23 @@ nlopt <- function(par, fn, lower, upper, control) {
         )
 }
 
-fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + froh_std + sex + hindleg_std + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + sex + froh_std + hindleg_std + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
                    data = mod_df, family = binomial(link = "logit"),
                    control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
 
 fit_glmer <- lmer(weight ~ gt5 + gt18 + gt7 + hindleg_std + froh_std + sex + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
-                   data = mod_df)
+                  data = mod_df)
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
 
-fit_lmer <- lmer(weight_std ~ gt5 + gt18 + gt7 + sex + froh_std + hindleg_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
-                   data = mod_df)
+fit_lmer <- lmer(weight_std ~ gt5 + gt18 + gt7 + sex + froh_std + hindleg_std + twin +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+                 data = mod_df)
 tidy(fit_lmer, conf.int = TRUE)
 
-fit_glmer <- glmer(survival ~ gt18 + gt5 + gt7 + sex + froh_std + twin + mum_age_std + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
-             data = mod_df, family = binomial(link = "probit"))
+fit_glmer <- glmer(survival ~ gt18 + gt5 + gt7 + sex + froh_std + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+                   data = mod_df, family = binomial(link = "probit"))
 tidy(fit_glmer, conf.int = TRUE)
 binned_residuals(fit_glmer)
 
@@ -84,16 +84,16 @@ binned_residuals(fit, term = "sex")
 post <- as.matrix(posterior_samples(fit)[c(1:8, 10)])
 dim(post)
 preds <- rbind(diag(1, nrow = 6, ncol = 6), rep(0, 6)) %>% 
-                as.matrix() %>% 
-                as_tibble() %>% 
-                setNames(colnames(post)[2:7]) %>% 
+        as.matrix() %>% 
+        as_tibble() %>% 
+        setNames(colnames(post)[2:7]) %>% 
         add_column(intercept = 1, .before = 1) %>% 
         # average marginal effect
         mutate(sex = mean(ifelse(mod_df$sex == "F", 0, 1))) %>% 
         # standardised measure have mean of 0, so not necessary to include here
         mutate(twin = mean(mod_df$twin))
-                #froh = mean(mod_df$froh_std),
-               #weight = mean(mod_df$weight_std))
+#froh = mean(mod_df$froh_std),
+#weight = mean(mod_df$weight_std))
 
 # get predictions
 out <- map(1:3, function(i) as_tibble( (t(post) * preds[i, ])))
@@ -136,6 +136,7 @@ pp_check(fit, nsamples = 100)
 plot_model(fit)
 
 
+
 library(tidybayes)
 diff_probs %>% 
         ggplot(aes(x = estimate, y = predictor)) +
@@ -148,7 +149,7 @@ diff_probs %>%
         theme_simple()
 
 hist(out$gt92 - out$nogt)
-           
+
 hist(invlogit(rowSums(post[, c(1, 2, 12)])) - invlogit(rowSums(post[, c(1, 12)])))
 
 emm2 <- lsmeans(fit, pairwise ~ gt9)
@@ -232,6 +233,8 @@ fit <- glmer(survival ~ gt_hap2 + sex + froh_std + twin + weight_std + mum_age_s
              control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 
 tidy(fit, conf.int=TRUE)
+
+
 
 
 

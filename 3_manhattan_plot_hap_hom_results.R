@@ -6,6 +6,7 @@ library(data.table)
 library(GWASTools)
 library(ggeffects)
 library(tidybayes)
+library(brms)
 library(genedroppeR)
 # read results from haplotype homozygosity scan
 all_files <- list.files(here("output", "hap_results_imputed", "hap_len_400"), full.names = TRUE)
@@ -48,7 +49,8 @@ res <- res_full %>%
         left_join(snp_map, by = c("chr", "snp_num"))
 
 # plots
-cols <- c("#33658A", "#86BBD8", "#2F4858")
+cols <- c("#DE9151", "#F34213", "#2E2E3A")
+#cols <- c("#06070E", "#29524A", "#94A187")
 #c( "#D08770",  "#5E81AC","#A3BE8C")
 
 # chromosome info from assembly
@@ -159,7 +161,6 @@ p_num
 # run script a few times ...
 #p_final <- p1 / p2 / p3 / p4 / p5 / p6 / p7
 #ggsave("figs/manhattans_imputed2.jpg", p_final, width = 9, height = 14)
-
 
 # haplotype frequency plots
 haps_all <- read_delim(here("output", "haps400_and_fitness.txt"))
