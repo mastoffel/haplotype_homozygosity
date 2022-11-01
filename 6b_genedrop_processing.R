@@ -6,21 +6,34 @@ library(here)
 library(glue)
 source("theme_simple.R")
 
-# haplotype frequency plots
+# data
 haps_all <- read_delim(here("output", "haps400_and_fitness.txt"))
-hap_names_full <- c("chr18_267", "chr7_12196","chr5_6293")
+
+# top haplotypes
+hap_names <- c("chr18_267", "chr7_12196", "chr5_6293")
+
+# load genedropping simulations for all three haplotypes
 load_gd <- function(hap_name) {
-        gd <- read_delim(here("output", paste0("genedrop_", hap_name, ".txt")))
-        gd_summ <- summary_genedrop(gd)[[2]] %>% 
-                as_tibble() %>% 
-                mutate(region = hap_name)
+        read_delim(here("output", paste0("genedrop_", hap_name, ".txt")))
 }
-genedrops <- map_dfr(hap_names_full, load_gd) %>% 
-        rename(birth_year = Cohort, freq = Count) %>% 
-        mutate(region = factor(region, levels = c("chr5_6293", "chr7_12196",
-                                                  "chr18_267")))
+genedrops <- map(hap_names, load_gd)
+
+# dfs for observed and summaries
+gd_observed <- map(genedrops, function(x) summary_genedrop(x)$observed_frequencies)
+names(gd_simulated) <- hap_names
+gd_simulated <- map(genedrops, function(x) summary_genedrop(x)$simulated_frequencies)
+names(gd_simulated) <- hap_names
+
+# coerce to single df
+gds_df <- bind_rows(gd_simulated, .id = "name") %>% 
+                as_tibble() %>% 
+                rename(region = name, birth_year = Cohort, freq = Count) %>% 
+                mutate(region = factor(region, levels = c("chr5_6293", "chr7_12196",
+                                                        "chr18_267")))
+
+# colors and labels for the plot
 cols <- c("#DE9151", "#F34213", "#2E2E3A")
-hap_names <- c(
+hap_labels <- c(
         "chr5_6293" = "SEL05",
         "chr7_12196" = "SEL07",
         "chr18_267" = "SEL18"
@@ -35,23 +48,49 @@ p_freq <- haps_all %>%
         ungroup() %>% 
         #mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
         ggplot(aes(birth_year, freq, group = 1, color = region)) +
-        geom_line(data=genedrops, alpha = 0.7, aes(y = p, group = Simulation),
-                  size = 0.05, color = "#D8DEE9")+
-        geom_line(size = 1.2) +
+        geom_line(data=gds_df, alpha = 0.7, aes(y = p, group = Simulation),
+                  size = 0.02, color = "#4C566A")+
+        geom_line(size = 1) +
         scale_color_manual(values = cols) +
         #geom_smooth(method = "lm", se = FALSE) +
-        facet_grid(~region, labeller=labeller(region = hap_names)) + 
-        theme_simple(grid_lines = FALSE, axis_lines = TRUE) +
+        facet_grid(~region, labeller=labeller(region = hap_labels)) + 
+        theme_simple(grid_lines = TRUE, axis_lines = TRUE) +
+        scale_y_continuous(limits = c(0, 0.5)) +
         # scale_color_manual(values = c( "#5E81AC")) + #5E81AC "#94350b"
         ylab("Haplotype\nfrequency") +
         xlab("Birth year") +
         theme(axis.line.y = element_blank(),
               axis.ticks.y = element_blank(),
-              legend.position = "none",
+              panel.grid.major.x = element_blank(),
               panel.spacing = unit(2.5, "lines"),
               strip.text.x = element_blank())
 # panel.grid.major.y = element_line(size = 0.1, color = "#4C566A")) 
 p_freq
+
+# 
+
+gmap_dfr(hap_names_full, load_gd)
+
+genedrops_sum <- summary_genedrop(genedrops)
+
+plot_genedrop_lm_slopes(unicorn.UF.summ,
+                        n_founder_cohorts = 5,
+                        remove_founders = T)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 hap1 <- top_haps$hap[2]

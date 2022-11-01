@@ -15,7 +15,7 @@ load(here("data", "sheep_ped.RData"))
 ped <- as_tibble(sheep_ped) %>% 
         setNames(c("id", "mother", "father"))
 
-# top_haplotypes
+# top haplotypes (genome-wide sig. homozygote deficiency)
 top_haps <- read_delim(here("output", "top_haps_400.txt"))
 
 # individual haplotypes and fitness
