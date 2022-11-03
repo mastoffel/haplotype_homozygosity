@@ -5,6 +5,8 @@ library(data.table)
 library(here)
 library(glue)
 source("theme_simple.R")
+source("gd_change.R")
+source("gd_slopes.R")
 
 # data
 haps_all <- read_delim(here("output", "haps400_and_fitness.txt"))
@@ -14,14 +16,17 @@ hap_names <- c("chr18_267", "chr7_12196", "chr5_6293")
 
 # load genedropping simulations for all three haplotypes
 load_gd <- function(hap_name) {
-        read_delim(here("output", paste0("genedrop_", hap_name, ".txt")))
+        read_delim(here("output", paste0("genedrop_", hap_name, ".txt"))) %>% 
+                as.data.frame()
 }
 genedrops <- map(hap_names, load_gd)
+gd_summaries <- map(genedrops, summary_genedrop)
+names(gd_summaries) <- hap_names
 
-# dfs for observed and summaries
-gd_observed <- map(genedrops, function(x) summary_genedrop(x)$observed_frequencies)
-names(gd_simulated) <- hap_names
-gd_simulated <- map(genedrops, function(x) summary_genedrop(x)$simulated_frequencies)
+# dfs for observed and simulations
+gd_observed <- map(gd_summaries, "observed_frequencies")
+names(gd_observed) <- hap_names
+gd_simulated <- map(gd_summaries, "simulated_frequencies")
 names(gd_simulated) <- hap_names
 
 # coerce to single df
@@ -67,18 +72,84 @@ p_freq <- haps_all %>%
 # panel.grid.major.y = element_line(size = 0.1, color = "#4C566A")) 
 p_freq
 
-# 
 
-gmap_dfr(hap_names_full, load_gd)
+# slopes
+slopes <- map(gd_summaries, gd_slopes, n_founder_cohorts = 3,
+              remove_founders = T) 
+emp_slopes <- map_dfr(slopes, 2, .id = "hap")
 
-genedrops_sum <- summary_genedrop(genedrops)
+sim_slopes <- slopes %>% 
+                map_dfr(1, .id = "hap") %>% 
+                select(hap, Slope)
 
-plot_genedrop_lm_slopes(unicorn.UF.summ,
-                        n_founder_cohorts = 5,
+ggplot(sim_slopes, aes(Slope)) +
+        geom_histogram(bins = 100) +
+        facet_wrap(~hap) +
+        geom_vline(data = emp_slopes, aes(xintercept = Slope))
+
+# cumulative change
+cumchange <- map(gd_summaries, gd_change, n_founder_cohorts = 4,
+                 remove_founders = F) 
+emp_change <- map_dfr(cumchange, 2, .id = "hap")
+
+sim_change <- cumchange %>% 
+                map_dfr(1, .id = "hap") %>% 
+                select(hap, value)
+
+ggplot(sim_change, aes(value)) +
+        geom_histogram(bins = 50) +
+        facet_wrap(~hap) +
+        geom_vline(data = emp_change, aes(xintercept = value))
+
+
+plot_genedrop_cumulative_change(gd_summaries[[2]],
+                        n_founder_cohorts = 3,
                         remove_founders = T)
 
 
 
+
+get_slope <- function(sim) {
+        sim <- sim %>% filter(birth_year > 1995)
+        lm(p ~ birth_year, data = sim)$coefficients[[2]]
+}
+
+sim_slopes <- gds_df %>% 
+        group_by(region, Simulation) %>% 
+        nest() %>% 
+        mutate(slope = map_dbl(data, get_slope)) %>% 
+        ungroup()
+
+emp_slopes <- gd_observed %>% 
+                bind_rows(.id = "names") %>% 
+                rename(birth_year = Cohort, region = names) %>% 
+                group_by(region, Simulation) %>% 
+                nest() %>% 
+                mutate(slope = map_dbl(data, get_slope)) %>% 
+                ungroup()
+        
+ggplot(sim_slopes, aes(slope)) +
+        geom_histogram(bins = 50) +
+        facet_wrap(~region) +
+        geom_vline(data = emp_slopes, aes(xintercept = slope))
+
+# cumulative change
+out <- map(gd_summaries, gd_change) %>% 
+        map_dfr(.[[2]], .id = "names") %>% 
+        select(names, value)
+out
+
+dat <- gd_simulated[[1]] %>% 
+        group_by(Simulation) %>% 
+        group_map(~get_slope(.x)) %>% 
+        unlist()
+
+hist(dat)
+
+out <- plot_genedrop_lm_slopes(gd_summary[[1]],
+                        n_founder_cohorts = 5,
+                        remove_founders = F)
+out
 
 
 

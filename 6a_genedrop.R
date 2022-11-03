@@ -22,6 +22,14 @@ top_haps <- read_delim(here("output", "top_haps_400.txt"))
 haps_fit <- read_delim(here("output", "haps400_and_fitness.txt")) %>% 
                 filter(age == 0)
 
+birth_years <- read_delim("../sheep_ID/data/1_Annual_Fitness_Measures_April_20190501.txt", 
+                          delim = "\t") %>% 
+        select(ID, BIRTHYEAR) %>% 
+        rename(id = ID, birth_year = BIRTHYEAR) %>% 
+        mutate(id = as.character(id)) %>% 
+        group_by(id) %>% 
+        sample_n(1)
+
 # chr7_12196 chr18_267 chr5_6293
 gene_drop_hap <- function(hap) {
         
@@ -56,7 +64,7 @@ gene_drop_hap <- function(hap) {
                                  cohort = sheep$cohort,
                                  genotype = sheep$gt,
                                  nsim = 1000,
-                                 n_founder_cohorts = 5, #8
+                                 n_founder_cohorts = 3, #8
                                  fix_founders = T,
                                  verbose = T,
                                  interval = 50)
@@ -65,6 +73,6 @@ gene_drop_hap <- function(hap) {
         
 }
 
-haps <- c("chr7_12196","chr18_267","chr5_6293")
+haps <- c("chr5_6293","chr7_12196","chr18_267")
 walk(haps, gene_drop_hap)
 
