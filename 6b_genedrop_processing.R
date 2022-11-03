@@ -16,7 +16,7 @@ hap_names <- c("chr18_267", "chr7_12196", "chr5_6293")
 
 # load genedropping simulations for all three haplotypes
 load_gd <- function(hap_name) {
-        read_delim(here("output", paste0("genedrop_", hap_name, ".txt"))) %>% 
+        read_delim(here("output", paste0("genedrop2_", hap_name, ".txt"))) %>% 
                 as.data.frame()
 }
 genedrops <- map(hap_names, load_gd)
@@ -58,9 +58,10 @@ p_freq <- haps_all %>%
         geom_line(size = 1) +
         scale_color_manual(values = cols) +
         #geom_smooth(method = "lm", se = FALSE) +
-        facet_grid(~region, labeller=labeller(region = hap_labels)) + 
+        facet_wrap(~region, labeller=labeller(region = hap_labels),
+                   scales = "free_y") + 
         theme_simple(grid_lines = TRUE, axis_lines = TRUE) +
-        scale_y_continuous(limits = c(0, 0.5)) +
+        scale_y_continuous(limits = c(0.05, 0.4)) +
         # scale_color_manual(values = c( "#5E81AC")) + #5E81AC "#94350b"
         ylab("Haplotype\nfrequency") +
         xlab("Birth year") +
@@ -74,7 +75,7 @@ p_freq
 
 
 # slopes
-slopes <- map(gd_summaries, gd_slopes, n_founder_cohorts = 3,
+slopes <- map(gd_summaries, gd_slopes, n_founder_cohorts = 5,
               remove_founders = T) 
 emp_slopes <- map_dfr(slopes, 2, .id = "hap")
 
@@ -88,8 +89,8 @@ ggplot(sim_slopes, aes(Slope)) +
         geom_vline(data = emp_slopes, aes(xintercept = Slope))
 
 # cumulative change
-cumchange <- map(gd_summaries, gd_change, n_founder_cohorts = 4,
-                 remove_founders = F) 
+cumchange <- map(gd_summaries, gd_change, n_founder_cohorts = 5,
+                 remove_founders =T) 
 emp_change <- map_dfr(cumchange, 2, .id = "hap")
 
 sim_change <- cumchange %>% 

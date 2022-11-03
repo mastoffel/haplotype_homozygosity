@@ -48,12 +48,16 @@ gene_drop_hap <- function(hap) {
         
         # combine with pedigree
         sheep <- ped %>% 
+                left_join(birth_years) %>% 
                 left_join(hap_fit) %>% 
                 select(id, mother, father, birth_year, gt) %>% 
                 rename(cohort = birth_year) %>% 
-                filter(cohort >= 1990) %>% 
+                filter((cohort >= 1990)) %>% 
                 filter(!(id == "2319" & mother == "2232" & father == "M0065"),
-                       !(id == "5586" & mother == "5635" & father == "5117")) %>% 
+                       !(id == "5586" & mother == "5635" & father == "5117"),
+                       !(id == "6210" & mother == "6780" & father == "M0066"),
+                       !(id == "41" & father == "2332"),
+                       !(id == "9745" & father == "8701")) %>% 
                 mutate(gt = ifelse(gt == "AB", "BA", gt)) %>% 
                 mutate(gt = as.factor(gt))
         
@@ -63,13 +67,13 @@ gene_drop_hap <- function(hap) {
                                  father = sheep$father,
                                  cohort = sheep$cohort,
                                  genotype = sheep$gt,
-                                 nsim = 1000,
-                                 n_founder_cohorts = 3, #8
+                                 nsim = 200,
+                                 n_founder_cohorts = 5, #8
                                  fix_founders = T,
                                  verbose = T,
                                  interval = 50)
         
-        write_delim(sheep_UF, here("output", glue("genedrop_", hap, ".txt")))
+        write_delim(sheep_UF, here("output", glue("genedrop2_", hap, ".txt")))
         
 }
 
