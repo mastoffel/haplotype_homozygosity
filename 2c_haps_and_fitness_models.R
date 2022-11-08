@@ -16,15 +16,16 @@ mod_df <- haps_fit %>%
                 #sex == s,
                 age == 0) %>% 
         select(survival, region, gt, sex, froh_all, twin, weight,  weight, hindleg, 
-               birth_year, mum_id) %>% 
+               birth_year, mum_id, mum_age) %>% 
         # drop all rows with missing values
         #drop_na() %>% 
         mutate(gt = as.factor(gt),
                froh_std = as.numeric(scale(froh_all)),
                weight_std = as.numeric(scale(weight)),
-               hindleg_std = as.numeric(scale(hindleg))) %>% 
+               hindleg_std = as.numeric(scale(hindleg)),
+               mum_age_std = as.numeric(scale(mum_age))) %>% 
         select(survival, region, gt, sex, froh_std, twin, weight_std,  weight, hindleg_std, 
-               birth_year, mum_id) %>% 
+               birth_year, mum_id, mum_age_std) %>% 
         pivot_wider(names_from = region, values_from = gt) %>% 
         mutate(gt18 = as.factor(chr18_267),
                 gt5 = as.factor(chr5_6293),
@@ -42,13 +43,14 @@ nlopt <- function(par, fn, lower, upper, control) {
         )
 }
 
-fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + froh_std + sex + hindleg_std + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + froh_std + sex + hindleg_std + twin + (1|birth_year) + (1|mum_id), 
                    data = mod_df, family = binomial(link = "logit"),
                    control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
+binned_residuals(fit_glmer)
 
-fit_glmer <- lmer(weight ~ gt5 + gt18 + gt7 + hindleg_std + froh_std + sex + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+fit_glmer <- lmer(weight ~ gt5 + gt18 + gt7 + hindleg_std + froh_std + sex + twin + (1|birth_year) + (1|mum_id), 
                    data = mod_df)
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
@@ -57,7 +59,7 @@ fit_lmer <- lmer(weight_std ~ gt5 + gt18 + gt7 + sex + froh_std + hindleg_std + 
                    data = mod_df)
 tidy(fit_lmer, conf.int = TRUE)
 
-fit_glmer <- glmer(survival ~ gt18 + gt5 + gt7 + sex + froh_std + twin + mum_age_std + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
+fit_glmer <- glmer(survival ~ gt18 + gt5 + gt7 + sex + froh_std + twin + (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
              data = mod_df, family = binomial(link = "probit"))
 tidy(fit_glmer, conf.int = TRUE)
 binned_residuals(fit_glmer)

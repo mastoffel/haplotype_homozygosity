@@ -67,13 +67,13 @@ gene_drop_hap <- function(hap) {
                                  father = sheep$father,
                                  cohort = sheep$cohort,
                                  genotype = sheep$gt,
-                                 nsim = 200,
-                                 n_founder_cohorts = 5, #8
+                                 nsim = 1000,
+                                 n_founder_cohorts = 3, #8
                                  fix_founders = T,
                                  verbose = T,
                                  interval = 50)
         
-        write_delim(sheep_UF, here("output", glue("genedrop2_", hap, ".txt")))
+        write_delim(sheep_UF, here("output", glue("genedrop3_", hap, ".txt")))
         
 }
 
