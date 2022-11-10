@@ -1,10 +1,11 @@
+library(MCMCglmm)
 library(tidyverse)
 library(brms)
 library(here)
 library(nadiv)
 library(asreml)
 library(broom.mixed)
-library(MCMCglmm)
+
 load(here("data", "sheep_ped.RData"))
 
 # add rel mat
@@ -37,9 +38,43 @@ mod_df <- haps_fit %>%
                twin = as.factor(twin)) %>% 
         rename(animal = id) %>% 
         mutate(animal_pe = animal) %>% 
+        rename(ID = animal) %>% 
         as.data.frame()
 
+# MCMCglmm
+Ainv <- MCMCglmm::inverseA(sheep_ped)$Ainv
 
+prior <- list(
+        R = list(V = 1, fix = 1),
+        G=list(G1=list(V=1, nu=1, alpha.mu=0, alpha.V=1000), 
+               G2=list(V=1, nu=1, alpha.mu=0, alpha.V=1000),
+               G3=list(V=1, nu=1, alpha.mu=0, alpha.V=1000))
+)
+
+mod <- MCMCglmm(weight~gt18 + gt5 + gt7 + sex + hindleg_std + froh_std + twin,
+                random=~ID + birth_year + mum_id,
+                ginverse=list(ID=Ainv),
+                family="gaussian",
+                data=mod_df, 
+                #verbose = FALSE, 
+                nitt=30000,  #30000, 10, 5000
+                thin=10, burnin=5000, prior=prior)
+tidy(mod)
+saveRDS(mod, "output/weight_MCMCglmm.rds")
+
+mod2 <- MCMCglmm(survival~gt18 + gt5 + gt7 + sex + hindleg_std + froh_std + twin,
+                random=~ID + birth_year + mum_id,
+                ginverse=list(ID=Ainv),
+                family="threshold",
+                data=mod_df, 
+                #verbose = FALSE, 
+                nitt=30000,  #30000, 10, 5000
+                thin=10, burnin=5000, prior=prior)
+
+saveRDS(mod2, "output/survival_MCMCglmm.rds")
+
+tidy(mod2, conf.int = TRUE)
+plot(mod)
 fit <- brm(
         weight ~ 1 + gt18 + gt5 + gt7 + sex + hindleg_std + froh_std + twin + (1 | gr(animal, cov = Amat)) + (1 | birth_year) + (1 | mum_id),
         data = mod_df,
@@ -49,6 +84,10 @@ fit <- brm(
 
 summary(fit)
 tidy(fit)
+
+
+plot(mod2)
+
 
 
 fit <- asreml(
