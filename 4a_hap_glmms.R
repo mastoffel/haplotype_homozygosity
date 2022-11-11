@@ -15,7 +15,7 @@ mod_df <- haps_fit %>%
         filter(#region == location,
                 #sex == s,
                 age == 0) %>% 
-        select(survival, region, gt, sex, froh_all, twin, weight,  weight, hindleg, 
+        select(survival, region, gt, sex, froh_all, twin, weight, hindleg, 
                birth_year, mum_id, mum_age) %>% 
         # drop all rows with missing values
         #drop_na() %>% 
