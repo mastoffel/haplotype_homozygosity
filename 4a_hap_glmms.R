@@ -25,11 +25,14 @@ mod_df <- haps_fit %>%
                hindleg_std = as.numeric(scale(hindleg)),
                mum_age_std = as.numeric(scale(mum_age))) %>% 
         select(survival, region, gt, sex, froh_std, twin, weight_std,  weight, hindleg_std, 
-               birth_year, mum_id, mum_age_std) %>% 
+               birth_year, mum_id, mum_age_std, hindleg) %>% 
         pivot_wider(names_from = region, values_from = gt) %>% 
         mutate(gt18 = as.factor(chr18_267),
                 gt5 = as.factor(chr5_6293),
                 gt7 = as.factor(chr7_12196))
+
+mod_df$hindleg
+
 # lme4
 # time saver function for modeling
 nlopt <- function(par, fn, lower, upper, control) {
@@ -43,17 +46,17 @@ nlopt <- function(par, fn, lower, upper, control) {
         )
 }
 
-fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + froh_std + sex + hindleg_std + twin + (1|birth_year) + (1|mum_id), 
+fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + hindleg_std + froh_std + sex + twin + (1|birth_year) + (1|mum_id), 
                    data = mod_df, family = binomial(link = "logit"),
                    control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
 binned_residuals(fit_glmer)
 
-fit_glmer <- lmer(weight ~ gt5 + gt18 + gt7 + hindleg_std + froh_std + sex + twin + (1|birth_year) + (1|mum_id), 
+fit_glmer <- lmer(weight ~ gt5 + gt18 + gt7 + froh_std + sex + twin + (1|birth_year) + (1|mum_id), 
                    data = mod_df)
 out <- tidy(fit_glmer, conf.int = TRUE)
-out
+summary(fit_glmer)
 
 fit_lmer <- lmer(weight_std ~ gt5 + gt18 + gt7 + sex + froh_std + hindleg_std + twin + mum_age_std +  (1|birth_year) + (1|mum_id), #gt + sex + weight_std +  twin + froh_std + (1|birth_year) + (1|mum_id)
                    data = mod_df)

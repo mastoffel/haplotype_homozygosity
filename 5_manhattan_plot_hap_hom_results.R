@@ -85,14 +85,21 @@ gwas_plot <- gwas_plot_tmp %>%
                 group_by(chromosome) %>% 
                 mutate(top_snp = ifelse(p_val == min(p_val), 1, 0)) %>% 
                 group_by(chromosome, top_snp) %>% 
-                mutate(top_snp2 = ifelse(top_snp == 1 & pos == min(pos) , 1, 0))# %>% 
-               # filter(p_val < 0.01)
+                mutate(top_snp2 = ifelse(top_snp == 1 & pos == min(pos) , 1, 0)) %>% 
+                filter(p_val < 0.01)
 
 hap_labels <- c(
         "chr5_6293" = "SEL05",
         "chr7_12196" = "SEL07",
         "chr18_267" = "SEL18"
 )
+
+hap_labels <- c(
+        "oar3_OAR18_4691643" = "SEL18",
+        "oar3_OAR5_37164925" = "SEL05",
+        "oar3_OAR7_71164579" = "SEL07"
+)
+
 hap_labs <- c("SEL05", "SEL07", "SEL18")
 
 
@@ -116,15 +123,23 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         new_scale_fill() +
         geom_point(data = gwas_plot %>% 
                            filter(p_val < 0.05/(eff_tests)) %>% 
-                           filter(top_snp2 == 1),
+                           filter(top_snp2 == 1) %>% 
+                           mutate(snp = factor(snp, levels=c("oar3_OAR5_37164925",
+                                                             "oar3_OAR7_71164579",
+                                                             "oar3_OAR18_4691643"))),
                    size = 3, shape = 21, stroke = 0.1, mapping = aes(fill = snp)) + # "#94350b"
+       
         theme_simple(axis_lines = TRUE, grid_lines = FALSE) +
-        scale_fill_manual(name = "Haplotype", 
-                          values = cols[c(3,1,2)], 
-                          labels = hap_labs) + # + #fill=FALSE,
+        scale_fill_manual(name = "Haplotype",
+                          values = cols,
+                          labels = hap_labs) +
+                          #breaks = c("SEL05", "SEL07", "SEL18"),
+                         # breaks = hap_labels[c(2, 3, 1)],
+                         # labels = hap_labels[c(2, 3, 1)]) + # + #fill=FALSE,
         theme(legend.position = "bottom")
+      
 # ggtitle("Haplotype length: 500 SNPs")
-#p_gwas
+p_gwas
 ggsave("figs/genome_scan.jpg", width = 7, height = 2.5)
 
 

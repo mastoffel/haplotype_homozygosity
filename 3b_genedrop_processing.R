@@ -39,7 +39,7 @@ gds_df <- bind_rows(gd_simulated, .id = "name") %>%
                                                         "chr18_267")))
 
 # colors and labels for the plot
-cols <- c("#DE9151", "#F34213", "#2E2E3A")
+#cols <- c("#DE9151", "#F34213", "#2E2E3A")
 cols <- c('#161032', '#C73E1D', "#FFC53A")
 hap_labels <- c(
         "chr5_6293" = "SEL05",
