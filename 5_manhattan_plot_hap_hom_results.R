@@ -85,8 +85,8 @@ gwas_plot <- gwas_plot_tmp %>%
                 group_by(chromosome) %>% 
                 mutate(top_snp = ifelse(p_val == min(p_val), 1, 0)) %>% 
                 group_by(chromosome, top_snp) %>% 
-                mutate(top_snp2 = ifelse(top_snp == 1 & pos == min(pos) , 1, 0)) %>% 
-                filter(p_val < 0.01)
+                mutate(top_snp2 = ifelse(top_snp == 1 & pos == min(pos) , 1, 0)) #%>% 
+                #filter(p_val < 0.01)
 
 hap_labels <- c(
         "chr5_6293" = "SEL05",
@@ -139,7 +139,7 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
         theme(legend.position = "bottom")
       
 # ggtitle("Haplotype length: 500 SNPs")
-p_gwas
+#p_gwas
 ggsave("figs/genome_scan.jpg", width = 7, height = 2.5)
 
 
