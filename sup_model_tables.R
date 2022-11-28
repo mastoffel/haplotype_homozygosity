@@ -58,7 +58,7 @@ tidy_weight %>% gt(
 
 tidy_surv <- tidy(surv) %>% 
         select(term:conf.high) %>% 
-        .[c(1,4:7,2,3,9,8,10:12), ] %>% 
+        .[c(1,4:7,2,3,9, 11, 8,12,13), ] %>% 
         mutate(term = c("Intercept",
                         "SEL05 (1 copy)",
                         "SEL05 (2 copies)",
@@ -67,6 +67,7 @@ tidy_surv <- tidy(surv) %>%
                         "SEL18 (1 copy)",
                         "SEL18 (2 copies)",
                         "F<sub>ROH</sub>",
+                        "Hindleg length",
                         "Sex",
                         "Twin",
                         "Birth Year",
@@ -74,6 +75,7 @@ tidy_surv <- tidy(surv) %>%
         )) %>% 
         mutate(add_info = c("", 
                             rep("categorical", 6),
+                            "z-transformed (x-mean(x))/sd(x)",
                             "z-transformed (x-mean(x))/sd(x)",
                             "categorical (0=female, 1=male)",
                             "categorical (0=singleton, 1=twin)",

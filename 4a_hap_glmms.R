@@ -51,10 +51,12 @@ fit_glmer <- glmer(survival ~ gt5 + gt18 + gt7 + hindleg_std + froh_std + sex + 
                    control = glmerControl(optimizer = "nloptwrap", calc.derivs = FALSE))
 out <- tidy(fit_glmer, conf.int = TRUE)
 out
+summary(fit_glmer)
 binned_residuals(fit_glmer)
 
-fit_glmer <- lmer(weight ~ gt5 + gt18 + gt7 + froh_std + sex + twin + (1|birth_year) + (1|mum_id), 
+fit_lmer <- lmer(weight ~ gt5 + gt18 + gt7 + froh_std + hindleg_std + sex + twin + (1|birth_year) + (1|mum_id), 
                    data = mod_df)
+
 out <- tidy(fit_glmer, conf.int = TRUE)
 summary(fit_glmer)
 
