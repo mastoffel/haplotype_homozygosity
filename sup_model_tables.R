@@ -58,7 +58,7 @@ tidy_weight %>% gt(
 
 tidy_surv <- tidy(surv) %>% 
         select(term:conf.high) %>% 
-        .[c(1,4:7,2,3,9, 11, 8,12,13), ] %>% 
+        .[c(1,4:7,2,3,9, 11,8,10,12,13), ] %>% 
         mutate(term = c("Intercept",
                         "SEL05 (1 copy)",
                         "SEL05 (2 copies)",
@@ -79,9 +79,9 @@ tidy_surv <- tidy(surv) %>%
                             "z-transformed (x-mean(x))/sd(x)",
                             "categorical (0=female, 1=male)",
                             "categorical (0=singleton, 1=twin)",
-                            "n = 39",
-                            "n = 1118")) %>% 
-        mutate(effect = c("", rep("Population level/fixed effects", 9),
+                            "n = 30",
+                            "n = 819")) %>% 
+        mutate(effect = c("", rep("Population level/fixed effects", 10),
                           rep("Group level/random effects (standard deviation)", 2))) %>% 
         select(7, 1:6) %>% 
         mutate_if(is.numeric, function(x) paste0(round(x, 3)," (",round(exp(x), 3), ")")) %>% 

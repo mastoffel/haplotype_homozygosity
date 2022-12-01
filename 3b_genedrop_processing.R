@@ -17,7 +17,7 @@ hap_names <- c("chr18_267", "chr7_12196", "chr5_6293")
 
 # load genedropping simulations for all three haplotypes
 load_gd <- function(hap_name) {
-        read_delim(here("output", paste0("genedrop_3fc_", hap_name, ".txt")),
+        read_delim(here("output", paste0("genedrop_rec_", hap_name, ".txt")), # genedrop_3fc_
                    col_types = "ddddddd") %>% 
                 as.data.frame()
 }
