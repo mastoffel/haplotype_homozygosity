@@ -17,7 +17,7 @@ Embryonic lethal mutations prevent individuals from being born, and can be seen 
 
 ### Code structure
 
-**1a_ - 1e_:** Create haplotypes using `shapeit4`
+**1a_ - 1e_:** Create haplotypes using [shapeit4](https://odelaneau.github.io/shapeit4/)
 
 **2a_haplotype_analysis:** Genome scan for embryonic lethal haplotypes
 
