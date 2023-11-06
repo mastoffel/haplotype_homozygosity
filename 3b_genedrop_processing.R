@@ -1,3 +1,5 @@
+# Processing and plotting genedropping simulations
+
 library(genedroppeR)
 library(tidyverse)
 library(snpStats)

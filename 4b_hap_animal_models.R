@@ -1,3 +1,5 @@
+# Modelling haplotype effects on fitness using animal models (not in paper)
+
 library(MCMCglmm)
 library(tidyverse)
 library(brms)

@@ -1,4 +1,6 @@
-# genedrop haplotypes
+# Genedrop analysis for haplotypes
+# ->Figure 2
+
 library(genedroppeR)
 library(tidyverse)
 library(snpStats)

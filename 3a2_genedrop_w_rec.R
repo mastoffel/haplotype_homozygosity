@@ -1,4 +1,6 @@
-# genedrop haplotypes
+# Genedrop analysis for haplotypes with recombination
+# -> Supplementary Figure 2
+
 library(genedroppeR)
 source("genedrop2.R")
 library(dplyr)
@@ -11,11 +13,6 @@ library(glue)
 library(plyr)
 library(here)
 
-
-#set.seed(95483) #rec2
-#set.seed(49596) #rec3
-#set.seed(32453256) # rec4
-#set.seed(3524532)
 set.seed(32423)
 # set.seed(43432)
 # desired format

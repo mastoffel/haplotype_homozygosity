@@ -1,4 +1,5 @@
-# model haplotype effects on postnatal fitness
+# Modelling haplotype effects on postnatal fitness using GLMMs
+
 library(tidyverse)
 library(lme4)
 library(performance)

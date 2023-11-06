@@ -1,3 +1,5 @@
+# Plotting models (-> Figure 3)
+
 library(tidyverse)
 library(brms)
 library(broom.mixed)

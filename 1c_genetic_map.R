@@ -1,5 +1,3 @@
-library(tidyverse)
-library(glue)
 # make genetic map per chromosome for shapeit4
 # structure is:
 
@@ -8,6 +6,10 @@ library(glue)
 
 # interpolated map from "Mutation load etc. paper"
 # files: sheep.bim (imputed) \ sheep_50K.bim
+
+library(tidyverse)
+library(glue)
+
 plink_map <- read_delim("data/plink/sheep_50K.bim", "\t", col_names = FALSE) %>%  
                 select(X2, X4) %>% 
                 setNames(c("snp", "pos"))

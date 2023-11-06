@@ -1,3 +1,5 @@
+# Plotting embryonic lethals genome scan (-> Figure 1)
+
 library(tidyverse)
 library(here)
 source("theme_simple.R")

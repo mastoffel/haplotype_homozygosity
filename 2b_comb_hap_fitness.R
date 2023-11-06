@@ -1,3 +1,5 @@
+# Combining haplotypes with fitness data for each individual
+
 library(dplyr)
 library(readr)
 library(here)

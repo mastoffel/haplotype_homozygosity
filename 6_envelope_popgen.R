@@ -1,3 +1,7 @@
+# Back of the envelope popgen calculations
+# Question: How do we expect haplotype frequencies to change over time,
+# assuming single locus models?
+
 # Calculate expected frequencies using single locus pop gen
 # assumes random mating, large population size etc.
 # also assumes deleterious allele to be fully recessive
