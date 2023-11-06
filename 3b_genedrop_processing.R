@@ -15,9 +15,9 @@ haps_all <- read_delim(here("output", "haps400_and_fitness.txt")) %>%
 # putative embryonic semi-lethals
 hap_names <- c("chr18_267", "chr7_12196", "chr5_6293")
 
-# load genedropping simulations for all three haplotypes
+# load genedropping simulations for all three haplotypes (for recombination its _rec3_)
 load_gd <- function(hap_name) {
-        read_delim(here("output", paste0("genedrop_rec_", hap_name, ".txt")), # genedrop_3fc_
+        read_delim(here("output", paste0("genedrop_", hap_name, ".txt")), # genedrop_3fc_
                    col_types = "ddddddd") %>% 
                 as.data.frame()
 }
@@ -57,7 +57,7 @@ p_freq <- haps_all %>%
         #mutate(highlight = factor(ifelse(region == "chr7_12119", 1, 0))) %>% 
         ggplot(aes(birth_year, freq, group = 1, color = hap)) +
         geom_line(data=gds_df, 
-                  alpha = 0.05, aes(y = p, group = Simulation), # #D8DEE9 "#4C566A"
+                  alpha = 0.02, aes(y = p, group = Simulation), # #D8DEE9 "#4C566A"
                   size = 0.05, color = "#4C566A", key_glyph = draw_key_path)+
         geom_line(size = 1.2, key_glyph = draw_key_path) +
         scale_color_manual('Haplotype', values = cols, labels = hap_labels) +
@@ -151,14 +151,20 @@ p_change <- ggplot(sim_change, aes(value, fill = hap)) +
               plot.margin = margin(b = 20, unit = "pt"))
 
 library(patchwork)
+library(systemfonts)
+system_fonts()
+library(extrafont)
+#loadfonts(device = "pdf")
 p_final <- p_freq / p_slopes / p_change +
         plot_layout(heights = c(3, 1, 1),
                     guides = 'collect') & theme(legend.position = 'bottom') &
+                                                #text = element_text("sans")) &
         plot_annotation(tag_levels = "A")
         
-ggsave("figs/genedrop.jpg", plot = p_final, width = 6, height = 6)
-
+ggsave("figs/genedrop.tiff", plot = p_final, width = 6, height = 6, dpi=400) # used to be 6, 6
+ggsave("figs/genedrop_pub.pdf", plot = p_final, width = 6, height = 6, device = cairo_pdf)
  
+
 # get results
 gd_observed %>% 
         map(function(x) {x %>% filter(Cohort == min(Cohort) | Cohort == max(Cohort))})

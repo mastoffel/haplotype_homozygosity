@@ -3,7 +3,7 @@ library(here)
 source("theme_simple.R")
 library(patchwork)
 library(data.table)
-library(GWASTools)
+#library(GWASTools)
 library(ggeffects)
 library(tidybayes)
 library(brms)
@@ -104,7 +104,16 @@ hap_labs <- c("SEL05", "SEL07", "SEL18")
 
 
 library(ggnewscale)
-p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) + 
+
+gwas_plot_sub <- gwas_plot %>% 
+        group_by(p_val > 0.2) %>%
+        mutate(row_id = row_number()) %>% 
+        filter(if_else(p_val > 0.03, row_id %in% sample(row_id, size = floor(0.01 * n())), TRUE)) %>%
+        ungroup() %>%
+        select(-row_id)
+
+
+p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +  # gwas_plot_sub
         geom_hline(yintercept = -log10(0.05/(eff_tests)), linetype="dashed", color = "grey") +
         geom_point(data = gwas_plot %>% filter(-log10(p_val) <= -log10(0.05/(eff_tests))),
                    aes(color = chromosome %%2 == 0),#shape = roh_prevalence  #fill = chromosome %%2 == 0
@@ -137,12 +146,14 @@ p_gwas <- ggplot(gwas_plot, aes(positive_cum, -log10(p_val))) +
                          # breaks = hap_labels[c(2, 3, 1)],
                          # labels = hap_labels[c(2, 3, 1)]) + # + #fill=FALSE,
         theme(legend.position = "bottom")
+              #text = element_text("sans")) 
+        #guides(fill='none', color = 'none') 
       
 # ggtitle("Haplotype length: 500 SNPs")
 #p_gwas
-ggsave("figs/genome_scan.jpg", width = 7, height = 2.5)
+ggsave("figs/genome_scan_pub.tiff", width = 7, height = 2.5, bg='white')
 
-
+ggsave("figs/genome_scan_pub_small.pdf", width = 7, height = 2.5, device = cairo_pdf)
 
 
 

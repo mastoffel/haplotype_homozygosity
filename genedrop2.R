@@ -120,6 +120,19 @@ genedrop2 <- function (id, mother, father, cohort = NULL, genotype, nsim,
                         haplo.frame$Dad.Allele[y2] <- apply(haplo.frame[haplo.frame$FATHER[y2], 
                                                                         c("Mum.Allele", "Dad.Allele")], 1, function(y) y[((runif(1) > 
                                                                                                                                    0.5) + 1L)])
+                        if (length(p_rec) != 0){
+                                   # chance that mum allele (haplotype) recombines
+                                   ma <- haplo.frame$Mum.Allele[y1] 
+                                   ma[ma==0] <- sample(c(0,1), size = length(ma[ma==0]), 
+                                                       replace=TRUE, prob=c(1-p_rec, p_rec))
+                                   haplo.frame$Mum.Allele[y1] <- ma
+                                   # chance that dad allele (haplotype) recombines
+                                   da <- haplo.frame$Dad.Allele[y2]
+                                   da[da==0] <- sample(c(0,1), size = length(da[da==0]), 
+                                                       replace=TRUE, prob=c(1-p_rec, p_rec))
+                                   haplo.frame$Dad.Allele[y2] <- da
+                        }           
+                        
                         y3 <- which(haplo.frame$cohort == x$cohort[h] & is.na(haplo.frame$Mum.Allele))
                         if (length(y3) > 0) {
                                 haplo.frame$Mum.Allele[y3] <- sapply(y3, function(y) ((runif(1) > 

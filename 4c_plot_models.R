@@ -120,10 +120,11 @@ p_final <-  p_surv / p_weight  +
   plot_annotation(tag_levels = "A")  +
   plot_layout(guides = "collect") &
   theme(legend.position = "bottom")
+        #text = element_text("sans"))
 p_final
 
-ggsave("figs/models.jpg", width = 5.4, height = 4)
-
+ggsave("figs/models.tiff", width = 5.4, height = 4, dpi = 600)
+ggsave("figs/models_pub.pdf", width = 5.4, height = 4, device = cairo_pdf)
 
 
 
