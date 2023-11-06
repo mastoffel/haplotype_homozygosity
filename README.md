@@ -1,6 +1,6 @@
 # Code for:
 
-**Martin A Stoffel**, Susan E Johnston, Jill G Pilkington, Josephine M Pemberton, *Purifying and balancing selection on embryonic semi-lethal haplotypes in a wild mammal*, Evolution Letters, 2023;, qrad053, https://doi.org/10.1093/evlett/qrad053
+**Martin A Stoffel**, Susan E Johnston, Jill G Pilkington, Josephine M Pemberton (2023): **Purifying and balancing selection on embryonic semi-lethal haplotypes in a wild mammal.** *Evolution Letters*, https://doi.org/10.1093/evlett/qrad053
 
 </br>
 
@@ -8,6 +8,12 @@
 
 ### Project
 Embryonic lethal mutations prevent individuals from being born, and can be seen as the earliest and most severe manifestation of inbreeding depression. Yet, we barely know anything about embryonic lethals in wild mammal populations, because it needs large samples of genomic data an detailed pedigrees to discover them. Here, we use dense SNP chip, fitness and pedigree data for a wild population of Soay Sheep on St. Kilda to identify embryonic lethals and quantify their effects.
+
+<p align="center">
+  <img width="90%" src="figs/final/Figure1.jpg">
+</p>
+<p align="center" > <i>Genome scan of embryonic lethal haplotypes .</i></p>
+
 
 ### Code structure
 
