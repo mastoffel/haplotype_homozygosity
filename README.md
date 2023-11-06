@@ -4,7 +4,7 @@
 
 </br>
 
-![](pics/mum_lamb.jpg)
+![](pics/IMG_3247.jpg)
 
 ### Project
 Embryonic lethal mutations prevent individuals from being born, and can be seen as the earliest and most severe manifestation of inbreeding depression. Yet, we barely know anything about embryonic lethals in wild mammal populations, because it needs large samples of genomic data an detailed pedigrees to discover them. Here, we use dense SNP chip, fitness and pedigree data for a wild population of Soay Sheep on St. Kilda to identify embryonic lethals and quantify their effects.
